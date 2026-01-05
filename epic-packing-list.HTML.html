@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Epic Packing List</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        body.dark-mode {
+            background: linear-gradient(135deg, #2d3561 0%, #3d2f52 100%);
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header .subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 20px;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        body.dark-mode .card {
+            background: #2a2a3e;
+            color: #e0e0e0;
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .template-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .template-btn:active {
+            transform: scale(0.95);
+        }
+
+        .template-btn .icon {
+            font-size: 32px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .progress-section {
+            margin-bottom: 25px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        body.dark-mode .progress-bar {
+            background: #1a1a2e;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        body.dark-mode .progress-stats {
+            color: #999;
+        }
+
+        .category {
+            margin-bottom: 20px;
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            user-select: none;
+        }
+
+        .category-header .icon {
+            font-size: 24px;
+        }
+
+        .category-header .title {
+            flex: 1;
+            margin-left: 15px;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .category-header .count {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .category.clothes .category-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .category.toiletries .category-header {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .category.electronics .category-header {
+            background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+        }
+
+        .category.band-gear .category-header {
+            background: linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%);
+        }
+
+        .category.work .category-header {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+        }
+
+        .category.documents .category-header {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #333;
+        }
+
+        .category.misc .category-header {
+            background: linear-gradient(135deg, #ff6e7f 0%, #bfe9ff 100%);
+        }
+
+        .category-items {
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .category-items.collapsed {
+            max-height: 0;
+        }
+
+        .item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        body.dark-mode .item {
+            background: #1a1a2e;
+        }
+
+        .item:active {
+            transform: scale(0.98);
+        }
+
+        .item.packed {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        .item-checkbox {
+            width: 28px;
+            height: 28px;
+            border: 3px solid #667eea;
+            border-radius: 8px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .item.packed .item-checkbox {
+            background: #667eea;
+            color: white;
+        }
+
+        .item-name {
+            flex: 1;
+            font-size: 16px;
+        }
+
+        .item-remove {
+            color: #ff6b6b;
+            font-size: 20px;
+            padding: 5px;
+            opacity: 0.6;
+        }
+
+        .coach-nudge {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            color: #2d3436;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .coach-nudge .icon {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        body.dark-mode .btn-secondary {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        .trip-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        body.dark-mode .trip-input {
+            background: #1a1a2e;
+            border-color: #3a3a5e;
+            color: #e0e0e0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .celebration {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+            animation: celebrate 1s ease;
+            pointer-events: none;
+            z-index: 2000;
+        }
+
+        @keyframes celebrate {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0;
+            }
+        }
+
+        .trip-history {
+            margin-top: 20px;
+        }
+
+        .trip-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        body.dark-mode .trip-card {
+            background: #1a1a2e;
+        }
+
+        .trip-card:active {
+            transform: scale(0.98);
+        }
+
+        .trip-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .trip-card-title {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .trip-card-date {
+            font-size: 12px;
+            color: #666;
+        }
+
+        body.dark-mode .trip-card-date {
+            color: #999;
+        }
+
+        .review-section {
+            margin-top: 20px;
+        }
+
+        .review-instruction {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        body.dark-mode .review-instruction {
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()">🌙</button>
+
+    <div class="container">
+        <div class="header">
+            <h1>✈️ Epic Packing</h1>
+            <div class="subtitle">Never forget, never overpack</div>
+        </div>
+
+        <!-- Home Screen -->
+        <div id="homeScreen">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Quick Start Templates</h2>
+                <div class="template-grid">
+                    <button class="template-btn" onclick="startTrip('work', 3)">
+                        <span class="icon">💼</span>
+                        Work Trip<br>(3 days)
+                    </button>
+                    <button class="template-btn" onclick="startTrip('gig', 2)">
+                        <span class="icon">🎸</span>
+                        Band Gig<br>(2 nights)
+                    </button>
+                    <button class="template-btn" onclick="startTrip('weekend', 3)">
+                        <span class="icon">🏖️</span>
+                        Weekend<br>Getaway
+                    </button>
+                    <button class="template-btn" onclick="startTrip('vacation', 7)">
+                        <span class="icon">🌴</span>
+                        Week-Long<br>Vacation
+                    </button>
+                </div>
+            </div>
+
+            <div class="card" id="historyCard" style="display: none;">
+                <h2 style="margin-bottom: 15px;">Recent Trips</h2>
+                <div id="tripHistory"></div>
+            </div>
+        </div>
+
+        <!-- Packing Screen -->
+        <div id="packingScreen" class="hidden">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 id="tripTitle">My Trip</h2>
+                    <button class="btn-secondary" style="padding: 8px 15px; border-radius: 8px;" onclick="backToHome()">← Back</button>
+                </div>
+
+                <div class="progress-section">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill">0%</div>
+                    </div>
+                    <div class="progress-stats">
+                        <span id="packedCount">0 packed</span>
+                        <span id="totalCount">0 items</span>
+                    </div>
+                </div>
+
+                <div id="coachNudges"></div>
+
+                <div id="categories"></div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="showAddItem()">+ Add Item</button>
+                    <button class="btn btn-primary" onclick="finishPacking()">Finish Trip</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review Screen -->
+        <div id="reviewScreen" class="hidden">
+            <div class="card">
+                <h2 style="margin-bottom: 15px;">Trip Review</h2>
+                <div class="review-instruction">
+                    Tap items you didn't use. This helps me pack smarter next time! 🧠
+                </div>
+                <div id="reviewCategories"></div>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="completeReview()">Save & Finish</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Item Modal -->
+        <div id="addItemModal" class="card hidden" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px;">
+            <h2 style="margin-bottom: 20px;">Add Item</h2>
+            <input type="text" id="newItemName" class="trip-input" placeholder="Item name..." onkeypress="if(event.key==='Enter') addCustomItem()">
+            <select id="newItemCategory" class="trip-input" style="margin-bottom: 15px;">
+                <option value="clothes">👕 Clothes</option>
+                <option value="toiletries">🧴 Toiletries</option>
+                <option value="electronics">🔌 Electronics</option>
+                <option value="band-gear">🎸 Band Gear</option>
+                <option value="work">💼 Work Essentials</option>
+                <option value="documents">📄 Documents</option>
+                <option value="misc">🎒 Miscellaneous</option>
+            </select>
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="hideAddItem()">Cancel</button>
+                <button class="btn btn-primary" onclick="addCustomItem(); return false;">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Templates
+        const templates = {
+            work: {
+                clothes: ['Dress shirts (3)', 'Pants (2)', 'Underwear (3)', 'Socks (3)', 'Belt', 'Dress shoes', 'Casual outfit'],
+                toiletries: ['Toothbrush', 'Toothpaste', 'Deodorant', 'Shampoo', 'Razor', 'Cologne'],
+                electronics: ['Laptop', 'Charger', 'Phone charger', 'Headphones'],
+                work: ['Work badge', 'Business cards', 'Notebook', 'Pen'],
+                documents: ['Wallet', 'ID', 'Credit cards'],
+                misc: ['Gym clothes', 'Water bottle']
+            },
+            gig: {
+                'band-gear': ['Les Paul', 'Jackson', 'Cables (3)', 'Tuner', 'Picks', 'Strap', 'Capo', 'Pedals'],
+                clothes: ['Stage outfit', 'Backup shirt', 'Jeans (2)', 'Underwear (2)', 'Socks (2)', 'Comfortable shoes'],
+                toiletries: ['Toothbrush', 'Toothpaste', 'Deodorant', 'Hair product'],
+                electronics: ['Phone charger', 'Headphones'],
+                documents: ['Wallet', 'ID'],
+                misc: ['Setlist', 'Water bottle', 'Towel']
+            },
+            weekend: {
+                clothes: ['Casual shirts (2)', 'Pants/shorts (2)', 'Underwear (3)', 'Socks (3)', 'Jacket', 'Comfortable shoes'],
+                toiletries: ['Toothbrush', 'Toothpaste', 'Deodorant', 'Shampoo', 'Razor'],
+                electronics: ['Phone charger', 'Headphones', 'Camera'],
+                documents: ['Wallet', 'ID', 'Credit cards'],
+                misc: ['Sunglasses', 'Water bottle', 'Book']
+            },
+            vacation: {
+                clothes: ['Shirts (5)', 'Pants/shorts (3)', 'Underwear (7)', 'Socks (7)', 'Swimsuit', 'Jacket', 'Comfortable shoes', 'Sandals', 'Hat'],
+                toiletries: ['Toothbrush', 'Toothpaste', 'Deodorant', 'Shampoo', 'Conditioner', 'Razor', 'Sunscreen', 'Cologne', 'Hair product'],
+                electronics: ['Phone charger', 'Headphones', 'Camera', 'Laptop', 'Tablet', 'Power bank'],
+                documents: ['Wallet', 'ID', 'Passport', 'Credit cards', 'Travel documents'],
+                misc: ['Sunglasses', 'Water bottle', 'Book', 'Beach towel', 'First aid kit', 'Snacks']
+            }
+        };
+
+        const categoryIcons = {
+            clothes: '👕',
+            toiletries: '🧴',
+            electronics: '🔌',
+            'band-gear': '🎸',
+            work: '💼',
+            documents: '📄',
+            misc: '🎒'
+        };
+
+        const categoryNames = {
+            clothes: 'Clothes',
+            toiletries: 'Toiletries',
+            electronics: 'Electronics & Chargers',
+            'band-gear': 'Band Gear',
+            work: 'Work Essentials',
+            documents: 'Documents/Wallet',
+            misc: 'Miscellaneous'
+        };
+
+        let currentTrip = null;
+        let tripHistory = JSON.parse(localStorage.getItem('tripHistory') || '[]');
+        let learningData = JSON.parse(localStorage.getItem('learningData') || '{}');
+        let collapsedCategories = {};
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.querySelector('.dark-mode-toggle').textContent = isDark ? '☀️' : '🌙';
+            localStorage.setItem('darkMode', isDark);
+        }
+
+        // Load dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            toggleDarkMode();
+        }
+
+        function startTrip(type, days) {
+            const template = JSON.parse(JSON.stringify(templates[type]));
+            
+            // Apply learning data
+            if (learningData[type]) {
+                Object.keys(template).forEach(category => {
+                    template[category] = template[category].filter(item => {
+                        const key = `${type}-${category}-${item}`;
+                        return !learningData[type][key] || learningData[type][key].unused < 2;
+                    });
+                });
+            }
+
+            currentTrip = {
+                id: Date.now(),
+                type: type,
+                days: days,
+                title: getTripTitle(type, days),
+                items: template,
+                packedItems: {},
+                createdAt: new Date().toISOString()
+            };
+
+            collapsedCategories = {}; // Reset collapse state for new trip
+            renderPackingScreen();
+        }
+
+        function getTripTitle(type, days) {
+            const titles = {
+                work: `Work Trip (${days} days)`,
+                gig: `Band Gig (${days} nights)`,
+                weekend: `Weekend Getaway`,
+                vacation: `Vacation (${days} days)`
+            };
+            return titles[type] || 'My Trip';
+        }
+
+        function renderPackingScreen() {
+            document.getElementById('homeScreen').classList.add('hidden');
+            document.getElementById('packingScreen').classList.remove('hidden');
+            document.getElementById('tripTitle').textContent = currentTrip.title;
+
+            const categoriesDiv = document.getElementById('categories');
+            categoriesDiv.innerHTML = '';
+
+            Object.keys(currentTrip.items).forEach(category => {
+                if (currentTrip.items[category].length === 0) return;
+
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = `category ${category}`;
+                
+                const packedCount = currentTrip.items[category].filter(item => 
+                    currentTrip.packedItems[`${category}-${item}`]
+                ).length;
+                
+                categoryDiv.innerHTML = `
+                    <div class="category-header" onclick="toggleCategory('${category}')">
+                        <span class="icon">${categoryIcons[category]}</span>
+                        <span class="title">${categoryNames[category]}</span>
+                        <span class="count">${packedCount}/${currentTrip.items[category].length}</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="category-items ${collapsedCategories[category] ? 'collapsed' : ''}" id="category-${category}">
+                        ${currentTrip.items[category].map((item, index) => `
+                            <div class="item ${currentTrip.packedItems[`${category}-${item}`] ? 'packed' : ''}" 
+                                 onclick="toggleItemByIndex('${category}', ${index})">
+                                <div class="item-checkbox">
+                                    ${currentTrip.packedItems[`${category}-${item}`] ? '✓' : ''}
+                                </div>
+                                <div class="item-name">${item}</div>
+                                <div class="item-remove" onclick="removeItemByIndex(event, '${category}', ${index})">×</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                categoriesDiv.appendChild(categoryDiv);
+            });
+
+            updateProgress();
+            checkCoachNudges();
+        }
+
+        function toggleCategory(category) {
+            const items = document.getElementById(`category-${category}`);
+            items.classList.toggle('collapsed');
+            collapsedCategories[category] = items.classList.contains('collapsed');
+        }
+
+        function toggleItemByIndex(category, index) {
+            event.stopPropagation();
+            const item = currentTrip.items[category][index];
+            const key = `${category}-${item}`;
+            currentTrip.packedItems[key] = !currentTrip.packedItems[key];
+            renderPackingScreen();
+        }
+
+        function toggleItem(category, item) {
+            event.stopPropagation();
+            const key = `${category}-${item}`;
+            currentTrip.packedItems[key] = !currentTrip.packedItems[key];
+            renderPackingScreen();
+        }
+
+        function removeItemByIndex(event, category, index) {
+            event.stopPropagation();
+            const item = currentTrip.items[category][index];
+            currentTrip.items[category].splice(index, 1);
+            delete currentTrip.packedItems[`${category}-${item}`];
+            renderPackingScreen();
+        }
+
+        function removeItem(event, category, item) {
+            event.stopPropagation();
+            currentTrip.items[category] = currentTrip.items[category].filter(i => i !== item);
+            delete currentTrip.packedItems[`${category}-${item}`];
+            renderPackingScreen();
+        }
+
+        function updateProgress() {
+            let totalItems = 0;
+            let packedCount = 0;
+
+            Object.keys(currentTrip.items).forEach(category => {
+                totalItems += currentTrip.items[category].length;
+                packedCount += currentTrip.items[category].filter(item => 
+                    currentTrip.packedItems[`${category}-${item}`]
+                ).length;
+            });
+
+            const percentage = totalItems > 0 ? Math.round((packedCount / totalItems) * 100) : 0;
+            
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressFill').textContent = percentage + '%';
+            document.getElementById('packedCount').textContent = `${packedCount} packed`;
+            document.getElementById('totalCount').textContent = `${totalItems} items`;
+
+            if (percentage === 100) {
+                celebrate();
+            }
+        }
+
+        function checkCoachNudges() {
+            const nudgesDiv = document.getElementById('coachNudges');
+            nudgesDiv.innerHTML = '';
+
+            // Check for overpacking
+            if (currentTrip.items.clothes) {
+                const shirtCount = currentTrip.items.clothes.filter(item => 
+                    item.toLowerCase().includes('shirt')
+                ).length;
+                
+                if (shirtCount > currentTrip.days + 1) {
+                    addNudge(`${shirtCount} shirts for ${currentTrip.days} days? That's bold. 😏`);
+                }
+            }
+
+            if (currentTrip.type === 'gig' && currentTrip.items['band-gear']) {
+                const guitars = currentTrip.items['band-gear'].filter(item => 
+                    item === 'Les Paul' || item === 'Jackson' || item === 'EVH'
+                );
+                
+                if (guitars.length >= 3) {
+                    addNudge(`${guitars.length} guitars for a gig? Living dangerously! 🎸`);
+                }
+            }
+        }
+
+        function addNudge(message) {
+            const nudgesDiv = document.getElementById('coachNudges');
+            const nudge = document.createElement('div');
+            nudge.className = 'coach-nudge';
+            nudge.innerHTML = `<span class="icon">💡</span><span>${message}</span>`;
+            nudgesDiv.appendChild(nudge);
+        }
+
+        function celebrate() {
+            const celebration = document.createElement('div');
+            celebration.className = 'celebration';
+            celebration.textContent = '🎉';
+            document.body.appendChild(celebration);
+            setTimeout(() => celebration.remove(), 1000);
+        }
+
+        function showAddItem() {
+            document.getElementById('addItemModal').classList.remove('hidden');
+        }
+
+        function hideAddItem() {
+            document.getElementById('addItemModal').classList.add('hidden');
+            document.getElementById('newItemName').value = '';
+        }
+
+        function addCustomItem() {
+            const name = document.getElementById('newItemName').value.trim();
+            const category = document.getElementById('newItemCategory').value;
+            
+            console.log('Adding item:', name, 'to category:', category);
+            
+            if (!name) return;
+            
+            if (!currentTrip.items[category]) {
+                currentTrip.items[category] = [];
+            }
+            
+            currentTrip.items[category].push(name);
+            console.log('Updated items for category:', category, currentTrip.items[category]);
+            
+            // Expand the category so user sees their new item
+            collapsedCategories[category] = false;
+            
+            hideAddItem();
+            renderPackingScreen();
+        }
+
+        function finishPacking() {
+            document.getElementById('packingScreen').classList.add('hidden');
+            document.getElementById('reviewScreen').classList.remove('hidden');
+            renderReviewScreen();
+        }
+
+        function renderReviewScreen() {
+            const reviewDiv = document.getElementById('reviewCategories');
+            reviewDiv.innerHTML = '';
+
+            Object.keys(currentTrip.items).forEach(category => {
+                if (currentTrip.items[category].length === 0) return;
+
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = `category ${category}`;
+                
+                categoryDiv.innerHTML = `
+                    <div class="category-header">
+                        <span class="icon">${categoryIcons[category]}</span>
+                        <span class="title">${categoryNames[category]}</span>
+                    </div>
+                    <div class="category-items">
+                        ${currentTrip.items[category].map(item => `
+                            <div class="item ${currentTrip.packedItems[`${category}-${item}`] ? '' : 'packed'}" 
+                                 onclick="toggleUnused('${category}', '${item}')">
+                                <div class="item-checkbox">
+                                    ${!currentTrip.packedItems[`${category}-${item}`] ? '✓' : ''}
+                                </div>
+                                <div class="item-name">${item}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                reviewDiv.appendChild(categoryDiv);
+            });
+        }
+
+        function toggleUnused(category, item) {
+            event.stopPropagation();
+            const key = `${category}-${item}`;
+            currentTrip.packedItems[key] = !currentTrip.packedItems[key];
+            renderReviewScreen();
+        }
+
+        function completeReview() {
+            // Update learning data
+            if (!learningData[currentTrip.type]) {
+                learningData[currentTrip.type] = {};
+            }
+
+            Object.keys(currentTrip.items).forEach(category => {
+                currentTrip.items[category].forEach(item => {
+                    const key = `${currentTrip.type}-${category}-${item}`;
+                    if (!learningData[currentTrip.type][key]) {
+                        learningData[currentTrip.type][key] = { unused: 0 };
+                    }
+                    
+                    // If item was marked as unused in review (not packed)
+                    if (!currentTrip.packedItems[`${category}-${item}`]) {
+                        learningData[currentTrip.type][key].unused++;
+                    } else {
+                        learningData[currentTrip.type][key].unused = Math.max(0, learningData[currentTrip.type][key].unused - 1);
+                    }
+                });
+            });
+
+            localStorage.setItem('learningData', JSON.stringify(learningData));
+
+            // Save to history
+            tripHistory.unshift({
+                ...currentTrip,
+                completedAt: new Date().toISOString()
+            });
+            if (tripHistory.length > 10) tripHistory.pop();
+            localStorage.setItem('tripHistory', JSON.stringify(tripHistory));
+
+            backToHome();
+            celebrate();
+        }
+
+        function backToHome() {
+            document.getElementById('packingScreen').classList.add('hidden');
+            document.getElementById('reviewScreen').classList.add('hidden');
+            document.getElementById('homeScreen').classList.remove('hidden');
+            currentTrip = null;
+            loadTripHistory();
+        }
+
+        function loadTripHistory() {
+            if (tripHistory.length === 0) {
+                document.getElementById('historyCard').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('historyCard').style.display = 'block';
+            const historyDiv = document.getElementById('tripHistory');
+            historyDiv.innerHTML = tripHistory.slice(0, 5).map(trip => `
+                <div class="trip-card" onclick="cloneTrip(${trip.id})">
+                    <div class="trip-card-header">
+                        <div class="trip-card-title">${trip.title}</div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <div class="trip-card-date">${new Date(trip.completedAt).toLocaleDateString()}</div>
+                            <div class="item-remove" onclick="deleteTrip(event, ${trip.id})" style="font-size: 24px; padding: 5px;">×</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function cloneTrip(id) {
+            const trip = tripHistory.find(t => t.id === id);
+            if (!trip) return;
+
+            currentTrip = {
+                id: Date.now(),
+                type: trip.type,
+                days: trip.days,
+                title: trip.title,
+                items: JSON.parse(JSON.stringify(trip.items)),
+                packedItems: {},
+                createdAt: new Date().toISOString()
+            };
+
+            renderPackingScreen();
+        }
+
+        function deleteTrip(event, id) {
+            event.stopPropagation();
+            tripHistory = tripHistory.filter(t => t.id !== id);
+            localStorage.setItem('tripHistory', JSON.stringify(tripHistory));
+            loadTripHistory();
+        }
+
+        // Initialize
+        loadTripHistory();
+    </script>
+</body>
+</html>
