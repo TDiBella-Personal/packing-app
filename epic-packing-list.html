@@ -926,7 +926,10 @@
                 <div class="trip-card" onclick="cloneTrip(${trip.id})">
                     <div class="trip-card-header">
                         <div class="trip-card-title">${trip.title}</div>
-                        <div class="trip-card-date">${new Date(trip.completedAt).toLocaleDateString()}</div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <div class="trip-card-date">${new Date(trip.completedAt).toLocaleDateString()}</div>
+                            <div class="item-remove" onclick="deleteTrip(event, ${trip.id})" style="font-size: 24px; padding: 5px;">×</div>
+                        </div>
                     </div>
                 </div>
             `).join('');
@@ -947,6 +950,13 @@
             };
 
             renderPackingScreen();
+        }
+
+        function deleteTrip(event, id) {
+            event.stopPropagation();
+            tripHistory = tripHistory.filter(t => t.id !== id);
+            localStorage.setItem('tripHistory', JSON.stringify(tripHistory));
+            loadTripHistory();
         }
 
         // Initialize
