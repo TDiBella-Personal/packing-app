@@ -5,25 +5,935 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Text Adventure</title>
     <style>
-        /* Styles go here */
-        body {
+        * {
             margin: 0;
             padding: 0;
-            background: #1a1a2e;
-            color: #e0e0e0;
-            font-family: 'Courier New', monospace;
-            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #00ff41;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            line-height: 1.5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #terminal {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 12px;
+        }
+
+        #output {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #output::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #output::-webkit-scrollbar-track {
+            background: #000;
+        }
+
+        #output::-webkit-scrollbar-thumb {
+            background: #00ff41;
+        }
+
+        #input-line {
+            display: flex;
+            align-items: center;
+            border-top: 1px solid #00ff41;
+            padding-top: 8px;
+            flex-shrink: 0;
+        }
+
+        #input-line .prompt {
+            color: #00ff41;
+            margin-right: 8px;
+            user-select: none;
+        }
+
+        #command-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #00ff41;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            caret-color: #00ff41;
+        }
+
+        #command-input:disabled {
+            opacity: 0.5;
+        }
+
+        #summary-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #summary-overlay.visible {
+            display: flex;
+        }
+
+        #summary-box {
+            border: 1px solid #00ff41;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            white-space: pre-wrap;
+            color: #00ff41;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        #load-file {
+            display: none;
+        }
+
+        .dim {
+            color: #009922;
         }
     </style>
 </head>
 <body>
-    <div id="app">
-        <!-- Game UI goes here -->
-        <h1>Text Adventure</h1>
-        <p>Scaffolding ready.</p>
+    <div id="terminal">
+        <div id="output"></div>
+        <div id="input-line">
+            <span class="prompt">&gt; </span>
+            <input type="text" id="command-input" autofocus autocomplete="off" spellcheck="false">
+        </div>
     </div>
+
+    <div id="summary-overlay">
+        <div id="summary-box"></div>
+    </div>
+
+    <input type="file" id="load-file" accept=".json">
+
+    <script src="config.js"></script>
     <script>
-        // Game logic goes here
+    (function() {
+        // ===== DOM =====
+        const output = document.getElementById('output');
+        const input = document.getElementById('command-input');
+        const summaryOverlay = document.getElementById('summary-overlay');
+        const summaryBox = document.getElementById('summary-box');
+        const loadFileInput = document.getElementById('load-file');
+
+        // ===== CONSTANTS =====
+        const TYPEWRITER_SPEED = 25;
+        const API_URL = 'https://api.anthropic.com/v1/messages';
+        const MODEL = 'claude-sonnet-4-5-20250929';
+
+        // ===== STATE =====
+        const STATES = {
+            MENU: 'menu',
+            SETUP: 'setup',
+            AWAITING_SETTING: 'awaiting_setting',
+            PLAYING: 'playing',
+            CONTINUE_PROMPT: 'continue_prompt',
+            WAITING: 'waiting'
+        };
+
+        let state = STATES.MENU;
+        let previousState = null;
+        let awaitingSettingIndex = null;
+        let typewriterTimer = null;
+        let typewriterResolve = null;
+
+        const defaults = {
+            genre: 'horror',
+            inputMode: 'multiple choice',
+            context: 'dark, gothic, like the Guy Ritchie film Sherlock Holmes',
+            responseSize: 50,
+            gameLength: 50,
+            difficulty: 'medium'
+        };
+
+        let settings = { ...defaults };
+
+        let game = {
+            turn: 0,
+            maxTurns: 50,
+            history: [],
+            messages: []
+        };
+
+        // ===== TERMINAL =====
+        function print(text) {
+            output.textContent += text + '\n';
+            scrollToBottom();
+        }
+
+        function printDim(text) {
+            const span = document.createElement('span');
+            span.className = 'dim';
+            span.textContent = text + '\n';
+            output.appendChild(span);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearScreen() {
+            output.textContent = '';
+        }
+
+        function setInputEnabled(enabled) {
+            input.disabled = !enabled;
+            if (enabled) {
+                input.focus();
+            }
+        }
+
+        function typewriter(text) {
+            return new Promise(function(resolve) {
+                setInputEnabled(false);
+                var i = 0;
+                var cancelled = false;
+
+                typewriterResolve = function() {
+                    if (!cancelled) {
+                        cancelled = true;
+                        clearTimeout(typewriterTimer);
+                        // Print remaining text at once
+                        output.textContent += text.slice(i) + '\n';
+                        scrollToBottom();
+                        typewriterTimer = null;
+                        typewriterResolve = null;
+                        setInputEnabled(true);
+                        resolve();
+                    }
+                };
+
+                function tick() {
+                    if (cancelled) return;
+                    if (i < text.length) {
+                        output.textContent += text[i];
+                        i++;
+                        scrollToBottom();
+                        typewriterTimer = setTimeout(tick, TYPEWRITER_SPEED);
+                    } else {
+                        output.textContent += '\n';
+                        scrollToBottom();
+                        typewriterTimer = null;
+                        typewriterResolve = null;
+                        setInputEnabled(true);
+                        resolve();
+                    }
+                }
+
+                tick();
+            });
+        }
+
+        // ===== WELCOME =====
+        function showWelcome() {
+            clearScreen();
+            print('');
+            print('========================================');
+            print('          T E X T   A D V E N T U R E');
+            print('========================================');
+            print('');
+            print('  A text-based adventure powered by AI.');
+            print('');
+            print('  Commands:');
+            print('    new    - Start a new game');
+            print('    load   - Load a saved game');
+            print('    help   - Show commands');
+            print('');
+            state = STATES.MENU;
+        }
+
+        // ===== SETUP =====
+        function showSetupScreen() {
+            print('');
+            print('NEW GAME SETUP');
+            print('==============================');
+            print('  [1] Genre ............ ' + settings.genre);
+            print('  [2] Input mode ....... ' + settings.inputMode);
+            print('  [3] Context .......... ' + settings.context);
+            print('  [4] Response size .... ' + settings.responseSize + ' words');
+            print('  [5] Game length ...... ' + settings.gameLength + ' turns');
+            print('  [6] Difficulty ....... ' + settings.difficulty);
+            print('');
+            print('Type a number to change a setting,');
+            print('or type "start" to begin.');
+            print('');
+        }
+
+        function promptForSetting(index) {
+            awaitingSettingIndex = index;
+            state = STATES.AWAITING_SETTING;
+
+            switch (index) {
+                case 1:
+                    print('Enter genre (e.g. horror, sci-fi, fantasy, noir):');
+                    break;
+                case 2:
+                    print('Enter input mode ("short answer" or "multiple choice"):');
+                    break;
+                case 3:
+                    print('Enter context/texture for the world:');
+                    break;
+                case 4:
+                    print('Enter max response size in words (10-200):');
+                    break;
+                case 5:
+                    print('Enter game length in turns (5-200):');
+                    break;
+                case 6:
+                    print('Enter difficulty (easy, medium, hard, stupid):');
+                    break;
+            }
+        }
+
+        function applySetting(index, value) {
+            switch (index) {
+                case 1:
+                    settings.genre = value.trim();
+                    break;
+                case 2:
+                    var v = value.trim().toLowerCase();
+                    if (v === 'short answer' || v === 'short' || v === 'sa') {
+                        settings.inputMode = 'short answer';
+                    } else {
+                        settings.inputMode = 'multiple choice';
+                    }
+                    break;
+                case 3:
+                    settings.context = value.trim();
+                    break;
+                case 4:
+                    var n = parseInt(value);
+                    if (n >= 10 && n <= 200) {
+                        settings.responseSize = n;
+                    } else {
+                        print('Invalid. Keeping ' + settings.responseSize + ' words.');
+                        return;
+                    }
+                    break;
+                case 5:
+                    var t = parseInt(value);
+                    if (t >= 5 && t <= 200) {
+                        settings.gameLength = t;
+                    } else {
+                        print('Invalid. Keeping ' + settings.gameLength + ' turns.');
+                        return;
+                    }
+                    break;
+                case 6:
+                    var d = value.trim().toLowerCase();
+                    if (['easy', 'medium', 'hard', 'stupid'].includes(d)) {
+                        settings.difficulty = d;
+                    } else {
+                        print('Invalid. Choose: easy, medium, hard, stupid.');
+                        return;
+                    }
+                    break;
+            }
+            print('Updated.');
+        }
+
+        // ===== SYSTEM PROMPT BUILDER =====
+        function buildSystemPrompt() {
+            var pct = game.turn / game.maxTurns;
+            var pacing;
+            if (pct < 0.2) {
+                pacing = 'INTRODUCTION phase. Set the scene, establish the world and the player\'s situation. Build atmosphere.';
+            } else if (pct < 0.5) {
+                pacing = 'RISING ACTION phase. Introduce complications, raise stakes, deepen the mystery or danger.';
+            } else if (pct < 0.8) {
+                pacing = 'ESCALATION phase. Major revelations, increasing danger, approach the climax. Tension should be high.';
+            } else {
+                pacing = 'CLIMAX phase. The story must reach its peak and begin resolution. Bring all threads together.';
+            }
+
+            var difficultyGuide;
+            switch (settings.difficulty) {
+                case 'easy':
+                    difficultyGuide = 'EASY: Most choices lead to acceptable outcomes. The correct path is obvious to a thoughtful player. Mistakes are forgiving with second chances.';
+                    break;
+                case 'medium':
+                    difficultyGuide = 'MEDIUM: Some choices are traps. The correct path requires thought but is identifiable. Wrong choices have real consequences but are survivable.';
+                    break;
+                case 'hard':
+                    difficultyGuide = 'HARD: Many choices lead to bad outcomes. The correct path is subtle and requires careful reasoning. Wrong choices have severe consequences.';
+                    break;
+                case 'stupid':
+                    difficultyGuide = 'STUPID: Almost every choice is a trap. The correct path is counterintuitive or absurd. Brutally punishing. Dark humor encouraged. The player should feel paranoid about every decision.';
+                    break;
+                default:
+                    difficultyGuide = 'MEDIUM difficulty.';
+            }
+
+            var choiceInstruction;
+            if (settings.inputMode === 'multiple choice') {
+                choiceInstruction = 'Provide 2-5 numbered choices after your narrative. Vary the number of choices based on the situation.';
+            } else {
+                choiceInstruction = 'Do NOT provide numbered choices. End with a short open-ended prompt like "What do you do?" so the player types a free response.';
+            }
+
+            return 'You are the game master of a text-based adventure game, in the style of Zork.\n\n' +
+                'SETTING:\n' +
+                '- Genre: ' + settings.genre + '\n' +
+                '- Tone/Context: ' + settings.context + '\n\n' +
+                'GAME STATE:\n' +
+                '- Current Turn: ' + game.turn + ' of ' + game.maxTurns + '\n' +
+                '- Difficulty: ' + settings.difficulty + '\n\n' +
+                'DIFFICULTY:\n' + difficultyGuide + '\n\n' +
+                'PACING (turn ' + game.turn + '/' + game.maxTurns + '):\n' + pacing + '\n\n' +
+                'RULES:\n' +
+                '1. Keep your narrative within ' + settings.responseSize + ' words maximum. Be vivid but concise.\n' +
+                '2. ' + choiceInstruction + '\n' +
+                '3. There must ALWAYS be at least one path that leads toward eventual success.\n' +
+                '4. All other paths lead to imprisonment, death, or worse.\n' +
+                '5. Track consequences of the player\'s previous actions.\n' +
+                '6. If the player dies, is captured permanently, or fails catastrophically, the game is over.\n' +
+                '7. Pace the story so the climax occurs near turn ' + game.maxTurns + '.\n\n' +
+                'RESPONSE FORMAT:\n' +
+                'Respond ONLY with valid JSON, no markdown fencing, no extra text. Use this exact structure:\n' +
+                '{\n' +
+                '  "narrative": "Your scene description here.",\n' +
+                (settings.inputMode === 'multiple choice'
+                    ? '  "choices": ["Option 1", "Option 2", "Option 3"],\n'
+                    : '  "choices": null,\n  "prompt": "What do you do?",\n') +
+                '  "gameOver": false,\n' +
+                '  "victory": false\n' +
+                '}\n\n' +
+                'If the game ends (player dies, is captured, or wins):\n' +
+                '- Set "gameOver": true\n' +
+                '- Set "victory": true if the player won, false otherwise\n' +
+                '- The "narrative" should describe the ending\n' +
+                '- Set "choices" to null';
+        }
+
+        // ===== CLAUDE API =====
+        async function callClaude(messages, systemPrompt) {
+            if (typeof API_KEY === 'undefined' || !API_KEY || API_KEY === 'your-api-key-here') {
+                throw new Error('API key not configured. Copy config.js.example to config.js and add your Anthropic API key.');
+            }
+
+            var response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': API_KEY,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true'
+                },
+                body: JSON.stringify({
+                    model: MODEL,
+                    max_tokens: 1024,
+                    system: systemPrompt,
+                    messages: messages
+                })
+            });
+
+            if (!response.ok) {
+                var errBody = await response.text();
+                throw new Error('API error (' + response.status + '): ' + errBody);
+            }
+
+            var data = await response.json();
+            return data.content[0].text;
+        }
+
+        function parseGameResponse(text) {
+            // Strip markdown code fencing if present
+            var cleaned = text.trim();
+            if (cleaned.startsWith('```')) {
+                cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+            }
+            return JSON.parse(cleaned);
+        }
+
+        // ===== GAME LOGIC =====
+        async function beginGame() {
+            state = STATES.WAITING;
+            game.turn = 1;
+            game.maxTurns = settings.gameLength;
+            game.history = [];
+            game.messages = [];
+
+            print('');
+            print('Generating your adventure...');
+            print('');
+
+            var systemPrompt = buildSystemPrompt();
+            game.messages.push({ role: 'user', content: 'Begin the adventure.' });
+            game.history.push({ role: 'player', text: '[Game started]' });
+
+            try {
+                var raw = await callClaude(game.messages, systemPrompt);
+                var resp = parseGameResponse(raw);
+                game.messages.push({ role: 'assistant', content: raw });
+                game.history.push({ role: 'game', text: resp.narrative });
+
+                await displayGameResponse(resp);
+
+                if (resp.gameOver) {
+                    endGame(resp.victory);
+                } else {
+                    state = STATES.PLAYING;
+                }
+            } catch (e) {
+                print('ERROR: ' + e.message);
+                print('Type "retry" to try again, or "menu" to go back.');
+                state = STATES.PLAYING;
+            }
+        }
+
+        async function processTurn(playerInput) {
+            state = STATES.WAITING;
+            game.turn++;
+
+            print('');
+
+            var systemPrompt = buildSystemPrompt();
+            game.messages.push({ role: 'user', content: playerInput });
+            game.history.push({ role: 'player', text: playerInput });
+
+            try {
+                var raw = await callClaude(game.messages, systemPrompt);
+                var resp = parseGameResponse(raw);
+                game.messages.push({ role: 'assistant', content: raw });
+                game.history.push({ role: 'game', text: resp.narrative });
+
+                await displayGameResponse(resp);
+
+                // Check turn limit
+                if (resp.gameOver) {
+                    endGame(resp.victory);
+                } else if (game.turn >= game.maxTurns) {
+                    print('');
+                    print('==============================');
+                    print('You have reached turn ' + game.turn + ' of ' + game.maxTurns + '.');
+                    print('');
+                    print('Type a number of additional turns');
+                    print('to continue, or "quit" to end.');
+                    print('==============================');
+                    print('');
+                    state = STATES.CONTINUE_PROMPT;
+                } else {
+                    printDim('[Turn ' + game.turn + '/' + game.maxTurns + ']');
+                    print('');
+                    state = STATES.PLAYING;
+                }
+            } catch (e) {
+                // Rollback turn on error
+                game.turn--;
+                game.messages.pop();
+                game.history.pop();
+                print('ERROR: ' + e.message);
+                print('Type your action again to retry.');
+                print('');
+                state = STATES.PLAYING;
+            }
+        }
+
+        async function displayGameResponse(resp) {
+            await typewriter(resp.narrative);
+            print('');
+
+            if (resp.choices && resp.choices.length > 0) {
+                for (var i = 0; i < resp.choices.length; i++) {
+                    print('  ' + (i + 1) + ') ' + resp.choices[i]);
+                }
+                print('');
+            } else if (resp.prompt) {
+                print(resp.prompt);
+                print('');
+            }
+        }
+
+        function endGame(victory) {
+            print('');
+            print('========================================');
+            if (victory) {
+                print('            V I C T O R Y');
+            } else {
+                print('           G A M E   O V E R');
+            }
+            print('========================================');
+            print('');
+            print('Commands: summary, save, new, menu');
+            print('');
+            state = STATES.MENU;
+        }
+
+        // ===== SAVE / LOAD =====
+        function saveGame() {
+            var saveData = {
+                version: 1,
+                timestamp: new Date().toISOString(),
+                settings: { ...settings },
+                game: {
+                    turn: game.turn,
+                    maxTurns: game.maxTurns,
+                    history: game.history.slice(),
+                    messages: game.messages.slice()
+                }
+            };
+
+            var blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'text-adventure-save-' + Date.now() + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            print('Game saved.');
+            print('');
+        }
+
+        function triggerLoad() {
+            loadFileInput.click();
+        }
+
+        loadFileInput.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    var saveData = JSON.parse(ev.target.result);
+                    if (!saveData.version || !saveData.settings || !saveData.game) {
+                        throw new Error('Invalid save file format.');
+                    }
+
+                    settings = { ...defaults, ...saveData.settings };
+                    game.turn = saveData.game.turn;
+                    game.maxTurns = saveData.game.maxTurns;
+                    game.history = saveData.game.history || [];
+                    game.messages = saveData.game.messages || [];
+
+                    clearScreen();
+                    print('');
+                    print('Game loaded. Turn ' + game.turn + ' of ' + game.maxTurns + '.');
+                    print('Genre: ' + settings.genre + ' | Difficulty: ' + settings.difficulty);
+                    print('');
+
+                    // Replay last response
+                    if (game.messages.length > 0) {
+                        var lastMsg = game.messages[game.messages.length - 1];
+                        if (lastMsg.role === 'assistant') {
+                            try {
+                                var resp = parseGameResponse(lastMsg.content);
+                                print(resp.narrative);
+                                print('');
+                                if (resp.choices && resp.choices.length > 0) {
+                                    for (var i = 0; i < resp.choices.length; i++) {
+                                        print('  ' + (i + 1) + ') ' + resp.choices[i]);
+                                    }
+                                    print('');
+                                } else if (resp.prompt) {
+                                    print(resp.prompt);
+                                    print('');
+                                }
+                            } catch (ex) {
+                                print('(Could not replay last scene.)');
+                                print('');
+                            }
+                        }
+                    }
+
+                    printDim('[Turn ' + game.turn + '/' + game.maxTurns + ']');
+                    print('');
+                    state = STATES.PLAYING;
+                } catch (err) {
+                    print('Failed to load: ' + err.message);
+                    print('');
+                }
+            };
+            reader.readAsText(file);
+            // Reset so same file can be loaded again
+            loadFileInput.value = '';
+        });
+
+        // ===== SUMMARY =====
+        async function showSummary() {
+            if (game.history.length === 0) {
+                print('No game history to summarize.');
+                print('');
+                return;
+            }
+
+            state = STATES.WAITING;
+            print('Generating summary...');
+
+            var historyText = '';
+            for (var i = 0; i < game.history.length; i++) {
+                var entry = game.history[i];
+                historyText += (entry.role === 'player' ? 'PLAYER: ' : 'GAME: ') + entry.text + '\n';
+            }
+
+            var summaryMessages = [
+                {
+                    role: 'user',
+                    content: 'Here is the complete history of a text adventure game session:\n\n' +
+                        historyText + '\n\n' +
+                        'Summarize this game session in 100 words or less. Include key situations, actions taken, and outcomes. Be concise and vivid. Respond with ONLY the summary text, nothing else.'
+                }
+            ];
+
+            try {
+                var summary = await callClaude(summaryMessages, 'You are a concise narrator. Respond with only the requested summary.');
+                summaryBox.textContent = 'GAME SUMMARY\n==============================\n\n' + summary + '\n\n[Press any key to close]';
+                summaryOverlay.classList.add('visible');
+
+                previousState = state;
+                // Listener handled globally
+            } catch (e) {
+                print('Summary error: ' + e.message);
+                print('');
+                state = STATES.PLAYING;
+            }
+        }
+
+        function closeSummary() {
+            if (summaryOverlay.classList.contains('visible')) {
+                summaryOverlay.classList.remove('visible');
+                state = STATES.PLAYING;
+                setInputEnabled(true);
+                return true;
+            }
+            return false;
+        }
+
+        // ===== INPUT HANDLING =====
+        function handleInput(raw) {
+            var trimmed = raw.trim();
+            if (!trimmed) return;
+
+            print('> ' + trimmed);
+
+            switch (state) {
+                case STATES.MENU:
+                    handleMenu(trimmed);
+                    break;
+                case STATES.SETUP:
+                    handleSetup(trimmed);
+                    break;
+                case STATES.AWAITING_SETTING:
+                    handleSettingInput(trimmed);
+                    break;
+                case STATES.PLAYING:
+                    handlePlaying(trimmed);
+                    break;
+                case STATES.CONTINUE_PROMPT:
+                    handleContinue(trimmed);
+                    break;
+                case STATES.WAITING:
+                    // Ignore input while waiting for API
+                    break;
+            }
+        }
+
+        function handleMenu(cmd) {
+            switch (cmd.toLowerCase()) {
+                case 'new':
+                    settings = { ...defaults };
+                    state = STATES.SETUP;
+                    showSetupScreen();
+                    break;
+                case 'load':
+                    triggerLoad();
+                    break;
+                case 'help':
+                    showHelp();
+                    break;
+                case 'summary':
+                    showSummary();
+                    break;
+                default:
+                    print('Unknown command. Type "help" for options.');
+                    print('');
+                    break;
+            }
+        }
+
+        function handleSetup(cmd) {
+            var lower = cmd.toLowerCase();
+            if (lower === 'start') {
+                beginGame();
+            } else if (lower === 'menu' || lower === 'back') {
+                showWelcome();
+            } else {
+                var num = parseInt(cmd);
+                if (num >= 1 && num <= 6) {
+                    promptForSetting(num);
+                } else {
+                    print('Type a number (1-6) to change a setting, or "start" to begin.');
+                    print('');
+                }
+            }
+        }
+
+        function handleSettingInput(value) {
+            applySetting(awaitingSettingIndex, value);
+            awaitingSettingIndex = null;
+            state = STATES.SETUP;
+            showSetupScreen();
+        }
+
+        function handlePlaying(cmd) {
+            var lower = cmd.toLowerCase();
+            switch (lower) {
+                case 'save':
+                    saveGame();
+                    break;
+                case 'load':
+                    triggerLoad();
+                    break;
+                case 'summary':
+                    showSummary();
+                    break;
+                case 'help':
+                    showGameHelp();
+                    break;
+                case 'menu':
+                    showWelcome();
+                    break;
+                case 'quit':
+                    print('Returning to menu. Use "save" first to keep your progress.');
+                    print('');
+                    showWelcome();
+                    break;
+                case 'retry':
+                    beginGame();
+                    break;
+                default:
+                    processTurn(cmd);
+                    break;
+            }
+        }
+
+        function handleContinue(cmd) {
+            var lower = cmd.toLowerCase();
+            if (lower === 'quit' || lower === 'menu') {
+                endGame(false);
+                return;
+            }
+
+            if (lower === 'save') {
+                saveGame();
+                return;
+            }
+
+            var extraTurns = parseInt(cmd);
+            if (extraTurns > 0 && extraTurns <= 200) {
+                game.maxTurns = game.turn + extraTurns;
+                print('');
+                print('The adventure continues for ' + extraTurns + ' more turns...');
+                print('');
+                state = STATES.PLAYING;
+
+                // Send continuation instruction to Claude
+                var contMsg = '[The player chooses to continue. ' + extraTurns + ' additional turns have been added. Create a new story arc that continues from the current situation and builds toward a new climax at turn ' + game.maxTurns + '.]';
+                processTurn(contMsg);
+            } else {
+                print('Enter a number of turns (1-200), or "quit" to end.');
+                print('');
+            }
+        }
+
+        function showHelp() {
+            print('');
+            print('COMMANDS');
+            print('==============================');
+            print('  new      Start a new game');
+            print('  load     Load a saved game (.json)');
+            print('  save     Save current game');
+            print('  summary  View game history summary');
+            print('  help     Show this help');
+            print('  quit     End current game');
+            print('  menu     Return to main menu');
+            print('');
+            print('During gameplay, type a choice');
+            print('number or your action text.');
+            print('');
+        }
+
+        function showGameHelp() {
+            print('');
+            print('IN-GAME COMMANDS');
+            print('==============================');
+            print('  save     Save game to file');
+            print('  load     Load game from file');
+            print('  summary  100-word game summary');
+            print('  help     Show this help');
+            print('  quit     End game');
+            print('');
+            print('Otherwise, type your action or');
+            print('a choice number (1, 2, 3...).');
+            print('');
+        }
+
+        // ===== EVENT LISTENERS =====
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                var value = input.value;
+                input.value = '';
+                handleInput(value);
+            }
+        });
+
+        // Skip typewriter on any key/click when typing
+        document.addEventListener('keydown', function(e) {
+            // Close summary on any key
+            if (closeSummary()) {
+                e.preventDefault();
+                return;
+            }
+            // Skip typewriter effect
+            if (typewriterResolve && e.key !== 'Enter') {
+                typewriterResolve();
+            }
+        });
+
+        document.addEventListener('click', function() {
+            closeSummary();
+            if (typewriterResolve) {
+                typewriterResolve();
+            }
+        });
+
+        // Keep focus on input
+        document.addEventListener('click', function() {
+            if (!input.disabled) {
+                input.focus();
+            }
+        });
+
+        // ===== INIT =====
+        showWelcome();
+        input.focus();
+    })();
     </script>
 </body>
 </html>
