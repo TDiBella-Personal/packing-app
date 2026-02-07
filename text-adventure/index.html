@@ -130,7 +130,6 @@
 
     <input type="file" id="load-file" accept=".json">
 
-    <script src="config.js"></script>
     <script>
     (function() {
         // ===== DOM =====
@@ -150,6 +149,7 @@
             MENU: 'menu',
             SETUP: 'setup',
             AWAITING_SETTING: 'awaiting_setting',
+            AWAITING_API_KEY: 'awaiting_api_key',
             PLAYING: 'playing',
             CONTINUE_PROMPT: 'continue_prompt',
             WAITING: 'waiting'
@@ -262,7 +262,15 @@
             print('  Commands:');
             print('    new    - Start a new game');
             print('    load   - Load a saved game');
+            print('    key    - Set API key');
             print('    help   - Show commands');
+            print('');
+            if (getApiKey()) {
+                printDim('[API key: set]');
+            } else {
+                print('  No API key found. Type "key"');
+                print('  to enter your Anthropic API key.');
+            }
             print('');
             state = STATES.MENU;
         }
@@ -430,17 +438,32 @@
                 '- Set "choices" to null';
         }
 
+        // ===== API KEY =====
+        function getApiKey() {
+            return localStorage.getItem('text-adventure-api-key');
+        }
+
+        function setApiKey(key) {
+            localStorage.setItem('text-adventure-api-key', key.trim());
+        }
+
+        function promptForApiKey() {
+            print('Enter your Anthropic API key:');
+            state = STATES.AWAITING_API_KEY;
+        }
+
         // ===== CLAUDE API =====
         async function callClaude(messages, systemPrompt) {
-            if (typeof API_KEY === 'undefined' || !API_KEY || API_KEY === 'your-api-key-here') {
-                throw new Error('API key not configured. Copy config.js.example to config.js and add your Anthropic API key.');
+            var apiKey = getApiKey();
+            if (!apiKey) {
+                throw new Error('No API key set. Type "key" to add your Anthropic API key.');
             }
 
             var response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': API_KEY,
+                    'x-api-key': apiKey,
                     'anthropic-version': '2023-06-01',
                     'anthropic-dangerous-direct-browser-access': 'true'
                 },
@@ -742,6 +765,12 @@
                 case STATES.AWAITING_SETTING:
                     handleSettingInput(trimmed);
                     break;
+                case STATES.AWAITING_API_KEY:
+                    setApiKey(trimmed);
+                    print('API key saved.');
+                    print('');
+                    showWelcome();
+                    break;
                 case STATES.PLAYING:
                     handlePlaying(trimmed);
                     break;
@@ -763,6 +792,9 @@
                     break;
                 case 'load':
                     triggerLoad();
+                    break;
+                case 'key':
+                    promptForApiKey();
                     break;
                 case 'help':
                     showHelp();
@@ -870,6 +902,7 @@
             print('  load     Load a saved game (.json)');
             print('  save     Save current game');
             print('  summary  View game history summary');
+            print('  key      Set/update API key');
             print('  help     Show this help');
             print('  quit     End current game');
             print('  menu     Return to main menu');
