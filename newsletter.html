@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>The Morning Rundown</title>
+
+    <!-- PWA & iOS Home Screen -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Rundown">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+
     <style>
         * {
             margin: 0;
@@ -22,6 +33,14 @@
         body.dark-mode {
             background: #1a1a2e;
             color: #e0e0e0;
+        }
+
+        /* Standalone mode (home screen app) adjustments */
+        @media all and (display-mode: standalone) {
+            .banner { padding-top: calc(env(safe-area-inset-top, 20px) + 16px); }
+            .dark-mode-toggle { top: calc(env(safe-area-inset-top, 16px) + 4px); }
+            .refresh-btn { top: calc(env(safe-area-inset-top, 16px) + 4px); }
+            .install-banner { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
         }
 
         /* Top Banner */
@@ -447,6 +466,75 @@
         .skeleton-line.short { width: 60%; }
         .skeleton-line.medium { width: 80%; }
 
+        /* Install Banner */
+        .install-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            z-index: 200;
+            transform: translateY(100%);
+            transition: transform 0.4s ease;
+        }
+
+        .install-banner.visible {
+            transform: translateY(0);
+        }
+
+        .dark-mode .install-banner {
+            background: #262640;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+        }
+
+        .install-banner .install-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
+        .install-banner .install-text {
+            flex: 1;
+        }
+
+        .install-banner .install-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .install-banner .install-desc {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .install-banner .install-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .install-banner .install-close {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
         /* Nav link back to packing app */
         .nav-link {
             position: fixed;
@@ -471,6 +559,17 @@
     <button class="dark-mode-toggle" onclick="toggleDarkMode()">🌙</button>
     <button class="refresh-btn" onclick="refreshNewsletter()" title="Refresh stories">🔄</button>
     <a class="nav-link" href="index.html" title="Packing List">🧳</a>
+
+    <!-- Install Banner (shown on iOS/Android when not installed) -->
+    <div class="install-banner" id="installBanner">
+        <img class="install-icon" src="icon-192.png" alt="App Icon">
+        <div class="install-text">
+            <div class="install-title">Add to Home Screen</div>
+            <div class="install-desc" id="installDesc">Get your newsletter with one tap</div>
+        </div>
+        <button class="install-btn" id="installBtn" onclick="handleInstall()">Add</button>
+        <button class="install-close" onclick="dismissInstall()">&times;</button>
+    </div>
 
     <div class="banner">
         <h1>The Morning Rundown</h1>
@@ -853,6 +952,68 @@
             btn.classList.add('spinning');
             setTimeout(() => btn.classList.remove('spinning'), 600);
             loadNewsletter();
+        }
+
+        // ─── Service Worker ────────────────────────────────────────
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(() => {});
+        }
+
+        // ─── Install Prompt (Android / Desktop) ───────────────────
+        let deferredPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallBanner('android');
+        });
+
+        // ─── iOS Detection & Install Guide ────────────────────────
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        }
+
+        function isStandalone() {
+            return window.navigator.standalone === true ||
+                   window.matchMedia('(display-mode: standalone)').matches;
+        }
+
+        function showInstallBanner(platform) {
+            if (localStorage.getItem('installDismissed')) return;
+            const banner = document.getElementById('installBanner');
+            const desc = document.getElementById('installDesc');
+            const btn = document.getElementById('installBtn');
+
+            if (platform === 'ios') {
+                desc.innerHTML = 'Tap <strong>Share</strong> ➜ <strong>Add to Home Screen</strong>';
+                btn.textContent = 'Got it';
+            }
+
+            setTimeout(() => banner.classList.add('visible'), 1500);
+        }
+
+        function handleInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(() => {
+                    deferredPrompt = null;
+                    document.getElementById('installBanner').classList.remove('visible');
+                });
+            } else {
+                // iOS — just dismiss with acknowledgment
+                dismissInstall();
+            }
+        }
+
+        function dismissInstall() {
+            document.getElementById('installBanner').classList.remove('visible');
+            localStorage.setItem('installDismissed', 'true');
+        }
+
+        // Show iOS banner if not already installed
+        if (isIOS() && !isStandalone()) {
+            showInstallBanner('ios');
         }
     </script>
 </body>
