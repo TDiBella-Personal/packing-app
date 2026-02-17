@@ -319,9 +319,11 @@
         // ─── Preferences parser ──────────────────────────────────
         let prefs = null;
         function parsePreferencesMd(md) {
-            const p = { articlesPerSection:6, prefsUrl:'', sections:[], customTopics:[], requests:'', displayOptions:{} };
+            const p = { articlesPerSection:6, location:'', prefsUrl:'', sections:[], customTopics:[], requests:'', displayOptions:{} };
             const artMatch = md.match(/\*\*Articles per section:\*\*\s*(\d+)/i);
             if (artMatch) p.articlesPerSection = parseInt(artMatch[1]);
+            const locMatch = md.match(/\*\*Location:\*\*\s*(.+)/i);
+            if (locMatch) { const v=locMatch[1].trim(); if(v&&!v.startsWith('*')&&!v.startsWith('(')) p.location=v; }
             const urlMatch = md.match(/\*\*Preferences URL:\*\*\s*(.+)/i);
             if (urlMatch) { const v=urlMatch[1].trim(); if(v&&!v.startsWith('*')&&!v.startsWith('(')) p.prefsUrl=v; }
             const sectionRegex = /- \[(x| )\]\s+(.+)/gi;
@@ -339,8 +341,9 @@
             const urls = []; if(savedUrl) urls.push(savedUrl); urls.push('preferences.md');
             for(const url of urls){ try{ const r=await fetch(url,{cache:'no-cache'}); if(r.ok){ const md=await r.text(); const p=parsePreferencesMd(md);
                 if(p.prefsUrl&&p.prefsUrl!==url&&!savedUrl){ try{const r2=await fetch(p.prefsUrl,{cache:'no-cache'}); if(r2.ok){prefs=parsePreferencesMd(await r2.text()); localStorage.setItem('rundownPrefsUrl',p.prefsUrl); return;}}catch(e){} }
-                prefs=p; return; }}catch(e){} }
-            prefs={articlesPerSection:6,prefsUrl:'',sections:Object.keys(SECTION_REGISTRY).map(t=>({title:t.split(' ').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '),enabled:true})),customTopics:[],requests:'',displayOptions:{}};
+                prefs=p; const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl; return; }}catch(e){} }
+            prefs={articlesPerSection:6,location:'',prefsUrl:'',sections:Object.keys(SECTION_REGISTRY).map(t=>({title:t.split(' ').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '),enabled:true})),customTopics:[],requests:'',displayOptions:{}};
+            const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl;
         }
         function getActiveSections(){
             const active=[];
@@ -383,6 +386,7 @@
                 +'<div class="drawer-section"><div class="drawer-section-title">Sections</div>'+t+'</div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Context Window</div><p style="font-size:13px;color:#888;margin-bottom:8px">Tell the newsletter what you want in plain English. It will adjust your feed based on keywords and intent.</p><textarea class="requests-textarea" id="requestsInput" placeholder="e.g. More NBA content\nFocus on AI breakthroughs\nLess politics in Top Stories\nShow cooking recipes on weekends">'+escapeHtml(savedReqs)+'</textarea>'+keywordsHtml+'</div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Custom Topics</div><p style="font-size:13px;color:#888;margin-bottom:8px">Add any subreddit as a custom section.</p><div class="add-topic-row"><input type="text" id="customSubreddit" placeholder="e.g. space, nba, vinyl" /><button class="add-topic-btn" onclick="addCustomTopic()">Add</button></div><div class="custom-topics-list">'+chips+'</div></div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Location</div><p style="font-size:13px;color:#888;margin-bottom:8px">City, state, or zip code for weather.</p><input class="prefs-url-input" id="locationInput" type="text" placeholder="e.g. 46033, Carmel IN, London" value="'+escapeHtml(prefs.location||'')+'" /></div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Preferences File</div><p class="prefs-hint">Load settings from an external URL (e.g. GitHub Gist raw link). Leave blank for local preferences.md.</p><input class="prefs-url-input" id="prefsUrlInput" type="url" placeholder="https://gist.githubusercontent.com/..." value="'+escapeHtml(prefs.prefsUrl||'')+'" /></div>';
         }
         function adjustCount(d){ prefs.articlesPerSection=Math.max(3,Math.min(12,prefs.articlesPerSection+d)); document.getElementById('articleCount').textContent=prefs.articlesPerSection; }
@@ -392,6 +396,7 @@
             document.querySelectorAll('[data-section-title]').forEach(cb=>{const t=cb.dataset.sectionTitle;const s=prefs.sections.find(x=>x.title===t);if(s)s.enabled=cb.checked;});
             const u=document.getElementById('prefsUrlInput'); if(u){const v=u.value.trim();if(v)localStorage.setItem('rundownPrefsUrl',v);else localStorage.removeItem('rundownPrefsUrl');}
             const reqEl=document.getElementById('requestsInput'); if(reqEl){const rv=reqEl.value.trim();localStorage.setItem('rundownRequests',rv);prefs.requests=rv;}
+            const locEl=document.getElementById('locationInput'); if(locEl){const lv=locEl.value.trim();localStorage.setItem('rundownLocation',lv);prefs.location=lv;}
             closeDrawer(); loadNewsletter();
         }
 
@@ -525,7 +530,7 @@
             }catch(e){console.warn('Failed HN',e);return [];}
         }
         async function fetchWeather(){
-            try{ const r=await fetch('https://wttr.in/?format=j1',{headers:{'Accept':'application/json'}}); if(!r.ok) throw new Error('Weather '+r.status);
+            try{ const loc=prefs&&prefs.location?encodeURIComponent(prefs.location):''; const r=await fetch('https://wttr.in/'+loc+'?format=j1',{headers:{'Accept':'application/json'}}); if(!r.ok) throw new Error('Weather '+r.status);
                 const d=await r.json(); const c=d.current_condition[0]; const a=d.nearest_area[0];
                 return {temp:c.temp_F,feels:c.FeelsLikeF,desc:c.weatherDesc[0].value,humidity:c.humidity,city:a.areaName[0].value,region:a.region[0].value,code:parseInt(c.weatherCode)};
             }catch(e){console.warn('Failed weather',e);return null;}
