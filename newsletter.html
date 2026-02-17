@@ -340,7 +340,7 @@
             const savedUrl = localStorage.getItem('rundownPrefsUrl');
             const urls = []; if(savedUrl) urls.push(savedUrl); urls.push('preferences.md');
             for(const url of urls){ try{ const r=await fetch(url,{cache:'no-cache'}); if(r.ok){ const md=await r.text(); const p=parsePreferencesMd(md);
-                if(p.prefsUrl&&p.prefsUrl!==url&&!savedUrl){ try{const r2=await fetch(p.prefsUrl,{cache:'no-cache'}); if(r2.ok){prefs=parsePreferencesMd(await r2.text()); localStorage.setItem('rundownPrefsUrl',p.prefsUrl); return;}}catch(e){} }
+                if(p.prefsUrl&&p.prefsUrl!==url&&!savedUrl){ try{const r2=await fetch(p.prefsUrl,{cache:'no-cache'}); if(r2.ok){prefs=parsePreferencesMd(await r2.text()); const sl2=localStorage.getItem('rundownLocation'); if(sl2!==null) prefs.location=sl2; localStorage.setItem('rundownPrefsUrl',p.prefsUrl); return;}}catch(e){} }
                 prefs=p; const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl; return; }}catch(e){} }
             prefs={articlesPerSection:6,location:'',prefsUrl:'',sections:Object.keys(SECTION_REGISTRY).map(t=>({title:t.split(' ').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '),enabled:true})),customTopics:[],requests:'',displayOptions:{}};
             const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl;
