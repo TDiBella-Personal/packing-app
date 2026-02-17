@@ -18,7 +18,7 @@
         body.dark-mode{background:#1a1a2e;color:#e0e0e0}
         @media all and (display-mode:standalone){
             .banner{padding-top:calc(env(safe-area-inset-top,20px)+16px)}
-            .dark-mode-toggle,.refresh-btn,.settings-btn{top:calc(env(safe-area-inset-top,16px)+4px)}
+            .dark-mode-toggle,.refresh-btn,.settings-btn,.collapse-all-btn{top:calc(env(safe-area-inset-top,16px)+4px)}
         }
         .banner{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:32px 20px 24px;text-align:center;color:#fff}
         .banner h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px;text-shadow:1px 1px 3px rgba(0,0,0,.15)}
@@ -29,7 +29,7 @@
         .page-layout{max-width:900px;margin:0 auto;padding:0 16px 40px;display:flex;gap:20px;align-items:flex-start}
         .sidebar{width:200px;flex-shrink:0;position:sticky;top:20px;display:none}
         .feed{flex:1;min-width:0}
-        @media(min-width:768px){.sidebar{display:block}.mobile-weather{display:none!important}}
+        @media(min-width:768px){}
         @media(max-width:767px){.sidebar{display:none}.page-layout{padding:0 10px 30px}}
 
         /* Weather Widget (sidebar) */
@@ -82,6 +82,7 @@
         .section-world .section-icon{background:#e0f2f1}.section-world .section-title{color:#00695c}
         .section-ai .section-icon{background:#e8eaf6}.section-ai .section-title{color:#5c6bc0}
         .section-custom .section-icon{background:#ede7f6}.section-custom .section-title{color:#4527a0}
+        .section-interesting .story-headline{font-weight:400}
 
         .dark-mode .section-headlines .section-icon{background:#2a2d4a}
         .dark-mode .section-tech .section-icon{background:#1e3a28}
@@ -129,6 +130,7 @@
         .dark-mode-toggle{position:fixed;top:16px;right:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
         .settings-btn{position:fixed;top:16px;right:62px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:transform .3s}
         .settings-btn:active{transform:rotate(60deg)}
+        .collapse-all-btn{position:fixed;top:16px;right:108px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:16px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
         .refresh-btn{position:fixed;top:16px;left:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:transform .5s}
         .refresh-btn.spinning{transform:rotate(360deg)}
 
@@ -207,6 +209,7 @@
 <body>
     <button class="dark-mode-toggle" onclick="toggleDarkMode()">&#x1F319;</button>
     <button class="settings-btn" onclick="openDrawer()" title="Settings">&#x2699;&#xFE0F;</button>
+    <button class="collapse-all-btn" onclick="toggleAllSections()" title="Expand/Collapse All" id="collapseAllBtn">&#x2195;&#xFE0F;</button>
     <button class="refresh-btn" onclick="refreshNewsletter()" title="Refresh">&#x1F504;</button>
     <a class="nav-link" href="index.html" title="Packing List">&#x1F9F3;</a>
 
@@ -353,7 +356,7 @@
         // ─── Init ────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async()=>{ initDarkMode(); setDateAndGreeting(); await loadPreferences(); const savedReqs=localStorage.getItem('rundownRequests'); if(savedReqs!==null) prefs.requests=savedReqs; loadNewsletter(); });
 
-        function initDarkMode(){ if(localStorage.getItem('newsletterDarkMode')==='true'){document.body.classList.add('dark-mode');document.querySelector('.dark-mode-toggle').textContent='\u2600\uFE0F';} }
+        function initDarkMode(){ const saved=localStorage.getItem('newsletterDarkMode'); const dark=saved!==null?saved==='true':(window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches); if(dark){document.body.classList.add('dark-mode');document.querySelector('.dark-mode-toggle').textContent='\u2600\uFE0F';} }
         function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); const d=document.body.classList.contains('dark-mode'); localStorage.setItem('newsletterDarkMode',d); document.querySelector('.dark-mode-toggle').textContent=d?'\u2600\uFE0F':'\u{1F319}'; }
 
         function setDateAndGreeting(){
@@ -491,10 +494,17 @@
         }
 
         // ─── Fetch helpers ───────────────────────────────────────
+        function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+        function getYesterdayCutoff(){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()-1,0,1,0).getTime()/1000; }
         async function fetchReddit(subreddit, limit=6){
-            try{ const r=await fetch('https://www.reddit.com/r/'+subreddit+'/hot.json?limit='+(limit+5)+'&raw_json=1',{headers:{'Accept':'application/json'}});
+            try{ const fetchLimit=Math.min(limit*5,50);
+                const r=await fetch('https://www.reddit.com/r/'+subreddit+'/hot.json?limit='+fetchLimit+'&raw_json=1',{headers:{'Accept':'application/json'}});
                 if(!r.ok) throw new Error('Reddit '+r.status); const d=await r.json();
-                return d.data.children.filter(c=>!c.data.stickied).slice(0,limit).map(c=>({title:c.data.title,summary:c.data.selftext?c.data.selftext.substring(0,160)+(c.data.selftext.length>160?'...':''):'',url:c.data.url.startsWith('/r/')?'https://www.reddit.com'+c.data.url:c.data.url,score:c.data.score,source:'r/'+subreddit,comments:c.data.num_comments}));
+                const cutoff=getYesterdayCutoff();
+                const all=d.data.children.filter(c=>!c.data.stickied);
+                const recent=all.filter(c=>c.data.created_utc>=cutoff);
+                const source=recent.length>=limit?recent:all;
+                return shuffle(source.map(c=>({title:c.data.title,summary:c.data.selftext?c.data.selftext.substring(0,160)+(c.data.selftext.length>160?'...':''):'',url:c.data.url.startsWith('/r/')?'https://www.reddit.com'+c.data.url:c.data.url,score:c.data.score,source:'r/'+subreddit,comments:c.data.num_comments}))).slice(0,limit);
             }catch(e){console.warn('Failed r/'+subreddit,e);return [];}
         }
         async function fetchMultiReddit(subs, limit=6){
@@ -504,10 +514,14 @@
             const merged=results.flat(); merged.sort((a,b)=>b.score-a.score); return merged.slice(0,limit);
         }
         async function fetchHackerNews(limit=8){
-            try{ const r=await fetch('https://hacker-news.firebaseio.com/v0/topstories.json'); if(!r.ok) throw new Error('HN '+r.status);
-                const ids=await r.json(); const top=ids.slice(0,limit);
+            try{ const fetchLimit=Math.min(limit*4,40);
+                const r=await fetch('https://hacker-news.firebaseio.com/v0/topstories.json'); if(!r.ok) throw new Error('HN '+r.status);
+                const ids=await r.json(); const top=ids.slice(0,fetchLimit);
                 const stories=await Promise.all(top.map(id=>fetch('https://hacker-news.firebaseio.com/v0/item/'+id+'.json').then(r=>r.json())));
-                return stories.map(s=>({title:s.title,summary:'',url:s.url||'https://news.ycombinator.com/item?id='+s.id,score:s.score,source:'Hacker News',comments:s.descendants||0}));
+                const cutoff=getYesterdayCutoff();
+                const recent=stories.filter(s=>s&&s.time>=cutoff);
+                const source=recent.length>=limit?recent:stories.filter(s=>s);
+                return shuffle(source.map(s=>({title:s.title,summary:'',url:s.url||'https://news.ycombinator.com/item?id='+s.id,score:s.score,source:'Hacker News',comments:s.descendants||0}))).slice(0,limit);
             }catch(e){console.warn('Failed HN',e);return [];}
         }
         async function fetchWeather(){
@@ -525,10 +539,9 @@
 
         // ─── Render ──────────────────────────────────────────────
         function renderWeather(w){
-            const wEl=document.getElementById('weatherWidget'),mEl=document.getElementById('mobileWeather');
-            if(!w){wEl.innerHTML='';mEl.innerHTML='';return;}
+            const mEl=document.getElementById('mobileWeather');
+            if(!w){mEl.innerHTML='';return;}
             const e=getWeatherEmoji(w.code);
-            wEl.innerHTML='<div class="weather-widget"><div class="ww-icon">'+e+'</div><div class="ww-temp">'+w.temp+'\u00B0F</div><div class="ww-feels">Feels like '+w.feels+'\u00B0F</div><div class="ww-desc">'+w.desc+'</div><div class="ww-location">'+w.city+', '+w.region+'</div><div class="ww-humidity">'+w.humidity+'% humidity</div></div>';
             mEl.innerHTML='<div class="weather-strip"><div class="weather-icon">'+e+'</div><div class="weather-info"><div class="weather-temp">'+w.temp+'\u00B0F (feels '+w.feels+'\u00B0F)</div><div class="weather-desc">'+w.desc+' \u2022 '+w.city+', '+w.region+' \u2022 '+w.humidity+'% humidity</div></div></div>';
         }
         function renderSection(section,stories,displayOpt){
@@ -544,6 +557,7 @@
             return '<div class="section '+section.theme+'"><div class="section-header" onclick="toggleSection(\''+sid+'\')"><div class="section-icon">'+section.icon+'</div><div class="section-title">'+section.title+'</div><div class="collapse-chevron">\u25BC</div></div><div class="section-body" id="'+sid+'">'+sh+'</div></div>';
         }
         function toggleSection(id){ const b=document.getElementById(id); b.classList.toggle('collapsed'); b.previousElementSibling.classList.toggle('collapsed'); }
+        function toggleAllSections(){ const bodies=document.querySelectorAll('.section-body'); const anyExpanded=[...bodies].some(b=>!b.classList.contains('collapsed')); bodies.forEach(b=>{if(anyExpanded){b.classList.add('collapsed');b.previousElementSibling.classList.add('collapsed');}else{b.classList.remove('collapsed');b.previousElementSibling.classList.remove('collapsed');}}); }
         function renderQuote(){ const q=QUOTES[Math.floor(Math.random()*QUOTES.length)]; return '<div class="quote-card"><div class="quote-text">\u201C'+escapeHtml(q.text)+'\u201D</div><div class="quote-author">\u2014 '+escapeHtml(q.author)+'</div></div>'; }
         function renderOnThisDay(){ const n=new Date(); const k=String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); const f=ON_THIS_DAY[k]; if(!f)return''; return '<div class="on-this-day"><h3>\u{1F4C5} On This Day</h3><p>'+escapeHtml(f)+'</p></div>'; }
         function renderFooter(){ return '<div class="footer"><p>Your Morning Rundown &bull; Brewed fresh at '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</p><p style="margin-top:4px"><a href="index.html">Open Packing List</a></p></div>'; }

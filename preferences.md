@@ -5,7 +5,7 @@ Edit this file to customize your newsletter. The app reads this on each load.
 ## Settings
 
 - **Articles per section:** 6
-- **Preferences URL:** *(optional — paste a raw URL to load prefs from a Gist or external file instead of this local file)*
+- **Preferences URL:** https://tdibella-personal.github.io/packing-app/preferences.md
 
 ## Sections
 
@@ -31,7 +31,6 @@ Add any subreddit as a custom section (one per line):
 
 ```
 space
-vinyl
 ```
 
 ## Requests
