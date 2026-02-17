@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>The Morning Rundown</title>
-
-    <!-- PWA & iOS Home Screen -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#667eea">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,996 +12,203 @@
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f0f5;min-height:100vh;color:#333}
+        body.dark-mode{background:#1a1a2e;color:#e0e0e0}
+        @media all and (display-mode:standalone){
+            .banner{padding-top:calc(env(safe-area-inset-top,20px)+16px)}
+            .dark-mode-toggle,.refresh-btn,.settings-btn{top:calc(env(safe-area-inset-top,16px)+4px)}
         }
+        .banner{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:32px 20px 24px;text-align:center;color:#fff}
+        .banner h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px;text-shadow:1px 1px 3px rgba(0,0,0,.15)}
+        .banner .date{font-size:14px;opacity:.9;font-weight:500}
+        .banner .tagline{font-size:13px;opacity:.75;margin-top:6px}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f0f0f5;
-            min-height: 100vh;
-            color: #333;
-        }
+        /* Layout */
+        .page-layout{max-width:900px;margin:0 auto;padding:0 16px 40px;display:flex;gap:20px;align-items:flex-start}
+        .sidebar{width:200px;flex-shrink:0;position:sticky;top:20px;display:none}
+        .feed{flex:1;min-width:0}
+        @media(min-width:768px){.sidebar{display:block}.mobile-weather{display:none!important}}
+        @media(max-width:767px){.sidebar{display:none}.page-layout{padding:0 10px 30px}}
 
-        body.dark-mode {
-            background: #1a1a2e;
-            color: #e0e0e0;
-        }
+        /* Weather Widget (sidebar) */
+        .weather-widget{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 14px rgba(0,0,0,.06);text-align:center}
+        .dark-mode .weather-widget{background:#262640;box-shadow:0 2px 14px rgba(0,0,0,.25)}
+        .ww-icon{font-size:40px;margin-bottom:8px}.ww-temp{font-size:22px;font-weight:700}
+        .ww-feels{font-size:12px;color:#888;margin-top:2px}.ww-desc{font-size:13px;color:#666;margin-top:8px;line-height:1.4}
+        .dark-mode .ww-desc{color:#aaa}.ww-location{font-size:11px;color:#aaa;margin-top:6px}.ww-humidity{font-size:11px;color:#aaa;margin-top:2px}
 
-        /* Standalone mode (home screen app) adjustments */
-        @media all and (display-mode: standalone) {
-            .banner { padding-top: calc(env(safe-area-inset-top, 20px) + 16px); }
-            .dark-mode-toggle { top: calc(env(safe-area-inset-top, 16px) + 4px); }
-            .refresh-btn { top: calc(env(safe-area-inset-top, 16px) + 4px); }
-            .settings-btn { top: calc(env(safe-area-inset-top, 16px) + 4px); }
-            .install-banner { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
-        }
+        /* Weather Strip (mobile) */
+        .mobile-weather .weather-strip{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#ffecd2,#fcb69f);border-radius:12px;padding:14px 18px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+        .dark-mode .mobile-weather .weather-strip{background:linear-gradient(135deg,#4a3728,#5c3a2e)}
+        .mobile-weather .weather-icon{font-size:32px}.mobile-weather .weather-info{flex:1}
+        .mobile-weather .weather-temp{font-size:18px;font-weight:700}.mobile-weather .weather-desc{font-size:13px;color:#8b5e3c}
+        .dark-mode .mobile-weather .weather-desc{color:#c9a07a}
 
-        /* Top Banner */
-        .banner {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 32px 20px 24px;
-            text-align: center;
-            color: white;
-        }
-
-        .banner h1 {
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            margin-bottom: 4px;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.15);
-        }
-
-        .banner .date {
-            font-size: 14px;
-            opacity: 0.9;
-            font-weight: 500;
-        }
-
-        .banner .tagline {
-            font-size: 13px;
-            opacity: 0.75;
-            margin-top: 6px;
-        }
-
-        /* Container */
-        .container {
-            max-width: 620px;
-            margin: 0 auto;
-            padding: 0 16px 40px;
-        }
-
-        /* Greeting Card */
-        .greeting-card {
-            background: white;
-            border-radius: 14px;
-            padding: 20px 22px;
-            margin: -16px 0 20px;
-            position: relative;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        }
-
-        .dark-mode .greeting-card {
-            background: #262640;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-
-        .greeting-card .greeting {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
-
-        .greeting-card .summary {
-            font-size: 14px;
-            color: #666;
-            line-height: 1.5;
-        }
-
-        .dark-mode .greeting-card .summary {
-            color: #aaa;
-        }
-
-        /* Weather Strip */
-        .weather-strip {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-            border-radius: 12px;
-            padding: 14px 18px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-        }
-
-        .dark-mode .weather-strip {
-            background: linear-gradient(135deg, #4a3728 0%, #5c3a2e 100%);
-        }
-
-        .weather-strip .weather-icon {
-            font-size: 32px;
-        }
-
-        .weather-strip .weather-info {
-            flex: 1;
-        }
-
-        .weather-strip .weather-temp {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .weather-strip .weather-desc {
-            font-size: 13px;
-            color: #8b5e3c;
-        }
-
-        .dark-mode .weather-strip .weather-desc {
-            color: #c9a07a;
-        }
+        /* Greeting */
+        .greeting-card{background:#fff;border-radius:14px;padding:20px 22px;margin:-16px 0 20px;position:relative;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+        .dark-mode .greeting-card{background:#262640;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+        .greeting-card .greeting{font-size:20px;font-weight:700;margin-bottom:6px}
+        .greeting-card .summary{font-size:14px;color:#666;line-height:1.5}
+        .dark-mode .greeting-card .summary{color:#aaa}
 
         /* Section */
-        .section {
-            background: white;
-            border-radius: 14px;
-            padding: 0;
-            margin-bottom: 18px;
-            overflow: hidden;
-            box-shadow: 0 2px 14px rgba(0,0,0,0.06);
-        }
+        .section{background:#fff;border-radius:14px;margin-bottom:18px;overflow:hidden;box-shadow:0 2px 14px rgba(0,0,0,.06)}
+        .dark-mode .section{background:#262640;box-shadow:0 2px 14px rgba(0,0,0,.25)}
+        .section-header{display:flex;align-items:center;gap:10px;padding:16px 20px 12px;border-bottom:1px solid #f0f0f5;cursor:pointer;user-select:none;-webkit-user-select:none}
+        .dark-mode .section-header{border-bottom-color:#333355}
+        .section-header.collapsed{border-bottom:none}
+        .section-icon{font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;flex-shrink:0}
+        .section-title{font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;flex:1}
+        .collapse-chevron{font-size:14px;color:#aaa;transition:transform .2s;flex-shrink:0}
+        .section-header.collapsed .collapse-chevron{transform:rotate(-90deg)}
+        .section-body{overflow:hidden;transition:max-height .3s ease}
+        .section-body.collapsed{max-height:0!important}
 
-        .dark-mode .section {
-            background: #262640;
-            box-shadow: 0 2px 14px rgba(0,0,0,0.25);
-        }
+        /* Section themes */
+        .section-headlines .section-icon{background:#eef0ff}.section-headlines .section-title{color:#667eea}
+        .section-tech .section-icon{background:#e8f7ed}.section-tech .section-title{color:#27ae60}
+        .section-sports .section-icon{background:#fff3e6}.section-sports .section-title{color:#e67e22}
+        .section-music .section-icon{background:#fce4ec}.section-music .section-title{color:#e91e63}
+        .section-work .section-icon{background:#e3f2fd}.section-work .section-title{color:#2196f3}
+        .section-interesting .section-icon{background:#f3e5f5}.section-interesting .section-title{color:#9c27b0}
+        .section-science .section-icon{background:#e0f7fa}.section-science .section-title{color:#00838f}
+        .section-gaming .section-icon{background:#fce4ec}.section-gaming .section-title{color:#c62828}
+        .section-movies .section-icon{background:#fff8e1}.section-movies .section-title{color:#f57f17}
+        .section-food .section-icon{background:#f1f8e9}.section-food .section-title{color:#558b2f}
+        .section-finance .section-icon{background:#e8eaf6}.section-finance .section-title{color:#283593}
+        .section-health .section-icon{background:#fce4ec}.section-health .section-title{color:#ad1457}
+        .section-world .section-icon{background:#e0f2f1}.section-world .section-title{color:#00695c}
+        .section-ai .section-icon{background:#e8eaf6}.section-ai .section-title{color:#5c6bc0}
+        .section-custom .section-icon{background:#ede7f6}.section-custom .section-title{color:#4527a0}
 
-        .section-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 16px 20px 12px;
-            border-bottom: 1px solid #f0f0f5;
-        }
+        .dark-mode .section-headlines .section-icon{background:#2a2d4a}
+        .dark-mode .section-tech .section-icon{background:#1e3a28}
+        .dark-mode .section-sports .section-icon{background:#3a2e1e}
+        .dark-mode .section-music .section-icon{background:#3a1e28}
+        .dark-mode .section-work .section-icon{background:#1e2e3a}
+        .dark-mode .section-interesting .section-icon{background:#2e1e3a}
+        .dark-mode .section-science .section-icon{background:#1a3038}
+        .dark-mode .section-gaming .section-icon{background:#3a1e1e}
+        .dark-mode .section-movies .section-icon{background:#38301a}
+        .dark-mode .section-food .section-icon{background:#2a3820}
+        .dark-mode .section-finance .section-icon{background:#1e2040}
+        .dark-mode .section-health .section-icon{background:#381a28}
+        .dark-mode .section-world .section-icon{background:#1a3830}
+        .dark-mode .section-ai .section-icon{background:#1e2040}
+        .dark-mode .section-custom .section-icon{background:#281a38}
 
-        .dark-mode .section-header {
-            border-bottom-color: #333355;
-        }
+        /* Stories */
+        .story{padding:14px 20px;border-bottom:1px solid #f5f5fa;transition:background .15s}
+        .story:last-child{border-bottom:none}
+        .dark-mode .story{border-bottom-color:#333355}
+        .story:hover{background:#fafaff}.dark-mode .story:hover{background:#2d2d4a}
+        .story-headline{font-size:15px;font-weight:600;margin-bottom:4px;line-height:1.4}
+        .story-headline a{color:inherit;text-decoration:none}.story-headline a:hover{text-decoration:underline}
+        .story-summary{font-size:13px;color:#777;line-height:1.5}.dark-mode .story-summary{color:#999}
+        .story-meta{font-size:11px;color:#aaa;margin-top:6px;display:flex;align-items:center;gap:8px}
+        .story-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase}
+        .tag-hot{background:#ffe0e0;color:#d32f2f}.tag-new{background:#e0f0ff;color:#1976d2}.tag-trending{background:#e8f5e9;color:#388e3c}
+        .dark-mode .tag-hot{background:#4a2020}.dark-mode .tag-new{background:#1e2e3a}.dark-mode .tag-trending{background:#1e3a28}
 
-        .section-icon {
-            font-size: 20px;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            flex-shrink: 0;
-        }
-
-        .section-title {
-            font-size: 16px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Section color themes */
-        .section-headlines .section-icon { background: #eef0ff; }
-        .section-headlines .section-title { color: #667eea; }
-        .section-tech .section-icon { background: #e8f7ed; }
-        .section-tech .section-title { color: #27ae60; }
-        .section-sports .section-icon { background: #fff3e6; }
-        .section-sports .section-title { color: #e67e22; }
-        .section-music .section-icon { background: #fce4ec; }
-        .section-music .section-title { color: #e91e63; }
-        .section-work .section-icon { background: #e3f2fd; }
-        .section-work .section-title { color: #2196f3; }
-        .section-interesting .section-icon { background: #f3e5f5; }
-        .section-interesting .section-title { color: #9c27b0; }
-        .section-science .section-icon { background: #e0f7fa; }
-        .section-science .section-title { color: #00838f; }
-        .section-gaming .section-icon { background: #fce4ec; }
-        .section-gaming .section-title { color: #c62828; }
-        .section-movies .section-icon { background: #fff8e1; }
-        .section-movies .section-title { color: #f57f17; }
-        .section-food .section-icon { background: #f1f8e9; }
-        .section-food .section-title { color: #558b2f; }
-        .section-finance .section-icon { background: #e8eaf6; }
-        .section-finance .section-title { color: #283593; }
-        .section-health .section-icon { background: #fce4ec; }
-        .section-health .section-title { color: #ad1457; }
-        .section-world .section-icon { background: #e0f2f1; }
-        .section-world .section-title { color: #00695c; }
-        .section-custom .section-icon { background: #ede7f6; }
-        .section-custom .section-title { color: #4527a0; }
-
-        .dark-mode .section-headlines .section-icon { background: #2a2d4a; }
-        .dark-mode .section-tech .section-icon { background: #1e3a28; }
-        .dark-mode .section-sports .section-icon { background: #3a2e1e; }
-        .dark-mode .section-music .section-icon { background: #3a1e28; }
-        .dark-mode .section-work .section-icon { background: #1e2e3a; }
-        .dark-mode .section-interesting .section-icon { background: #2e1e3a; }
-        .dark-mode .section-science .section-icon { background: #1a3038; }
-        .dark-mode .section-gaming .section-icon { background: #3a1e1e; }
-        .dark-mode .section-movies .section-icon { background: #38301a; }
-        .dark-mode .section-food .section-icon { background: #2a3820; }
-        .dark-mode .section-finance .section-icon { background: #1e2040; }
-        .dark-mode .section-health .section-icon { background: #381a28; }
-        .dark-mode .section-world .section-icon { background: #1a3830; }
-        .dark-mode .section-custom .section-icon { background: #281a38; }
-
-        /* Story Items */
-        .story {
-            padding: 14px 20px;
-            border-bottom: 1px solid #f5f5fa;
-            transition: background 0.15s;
-        }
-
-        .story:last-child {
-            border-bottom: none;
-        }
-
-        .dark-mode .story {
-            border-bottom-color: #333355;
-        }
-
-        .story:hover {
-            background: #fafaff;
-        }
-
-        .dark-mode .story:hover {
-            background: #2d2d4a;
-        }
-
-        .story-headline {
-            font-size: 15px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            line-height: 1.4;
-        }
-
-        .story-headline a {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        .story-headline a:hover {
-            text-decoration: underline;
-        }
-
-        .story-summary {
-            font-size: 13px;
-            color: #777;
-            line-height: 1.5;
-        }
-
-        .dark-mode .story-summary {
-            color: #999;
-        }
-
-        .story-meta {
-            font-size: 11px;
-            color: #aaa;
-            margin-top: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .story-tag {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .tag-hot { background: #ffe0e0; color: #d32f2f; }
-        .tag-new { background: #e0f0ff; color: #1976d2; }
-        .tag-trending { background: #e8f5e9; color: #388e3c; }
-        .dark-mode .tag-hot { background: #4a2020; }
-        .dark-mode .tag-new { background: #1e2e3a; }
-        .dark-mode .tag-trending { background: #1e3a28; }
-
-        /* Quote Card */
-        .quote-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 14px;
-            padding: 24px 22px;
-            margin-bottom: 18px;
-            color: white;
-            text-align: center;
-        }
-
-        .quote-text {
-            font-size: 16px;
-            font-style: italic;
-            line-height: 1.6;
-            margin-bottom: 10px;
-        }
-
-        .quote-author {
-            font-size: 13px;
-            opacity: 0.85;
-            font-weight: 600;
-        }
+        /* Quote */
+        .quote-card{background:linear-gradient(135deg,#667eea,#764ba2);border-radius:14px;padding:24px 22px;margin-bottom:18px;color:#fff;text-align:center}
+        .quote-text{font-size:16px;font-style:italic;line-height:1.6;margin-bottom:10px}.quote-author{font-size:13px;opacity:.85;font-weight:600}
 
         /* On This Day */
-        .on-this-day {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-            border-radius: 14px;
-            padding: 18px 22px;
-            margin-bottom: 18px;
-        }
-
-        .dark-mode .on-this-day {
-            background: linear-gradient(135deg, #1e3a38 0%, #3a1e2e 100%);
-        }
-
-        .on-this-day h3 {
-            font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .on-this-day p {
-            font-size: 13px;
-            line-height: 1.5;
-            color: #555;
-        }
-
-        .dark-mode .on-this-day p {
-            color: #bbb;
-        }
+        .on-this-day{background:linear-gradient(135deg,#a8edea,#fed6e3);border-radius:14px;padding:18px 22px;margin-bottom:18px}
+        .dark-mode .on-this-day{background:linear-gradient(135deg,#1e3a38,#3a1e2e)}
+        .on-this-day h3{font-size:14px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+        .on-this-day p{font-size:13px;line-height:1.5;color:#555}.dark-mode .on-this-day p{color:#bbb}
 
         /* Footer */
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #aaa;
-            font-size: 12px;
-        }
-
-        .footer a {
-            color: #667eea;
-            text-decoration: none;
-        }
-
-        /* Dark Mode Toggle */
-        .dark-mode-toggle {
-            position: fixed;
-            top: 16px;
-            right: 16px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            font-size: 18px;
-            cursor: pointer;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(10px);
-        }
-
-        /* Refresh Button */
-        .refresh-btn {
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            font-size: 18px;
-            cursor: pointer;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(10px);
-            transition: transform 0.5s;
-        }
-
-        .refresh-btn.spinning {
-            transform: rotate(360deg);
-        }
-
-        /* Settings Button */
-        .settings-btn {
-            position: fixed;
-            top: 16px;
-            right: 62px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            font-size: 18px;
-            cursor: pointer;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(10px);
-            transition: transform 0.3s;
-        }
-
-        .settings-btn:active {
-            transform: rotate(60deg);
-        }
-
-        /* Loading State */
-        .loading {
-            text-align: center;
-            padding: 30px 20px;
-            color: #999;
-        }
-
-        .loading .spinner {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 3px solid #e0e0e0;
-            border-top-color: #667eea;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 10px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading p {
-            font-size: 13px;
-        }
-
-        /* Error State */
-        .error-msg {
-            text-align: center;
-            padding: 16px;
-            color: #e74c3c;
-            font-size: 13px;
-        }
-
-        /* Responsive */
-        @media (max-width: 480px) {
-            .banner h1 { font-size: 24px; }
-            .container { padding: 0 10px 30px; }
-            .greeting-card { padding: 16px 18px; }
-            .story { padding: 12px 16px; }
-        }
-
-        /* Skeleton loading */
-        .skeleton {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 6px;
-        }
-
-        .dark-mode .skeleton {
-            background: linear-gradient(90deg, #333355 25%, #3d3d60 50%, #333355 75%);
-            background-size: 200% 100%;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        .skeleton-line {
-            height: 14px;
-            margin-bottom: 8px;
-        }
-
-        .skeleton-line.short { width: 60%; }
-        .skeleton-line.medium { width: 80%; }
-
-        /* Install Banner */
-        .install-banner {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-            z-index: 200;
-            transform: translateY(100%);
-            transition: transform 0.4s ease;
-        }
-
-        .install-banner.visible {
-            transform: translateY(0);
-        }
-
-        .dark-mode .install-banner {
-            background: #262640;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
-        }
-
-        .install-banner .install-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            flex-shrink: 0;
-        }
-
-        .install-banner .install-text {
-            flex: 1;
-        }
-
-        .install-banner .install-title {
-            font-size: 15px;
-            font-weight: 700;
-            margin-bottom: 2px;
-        }
-
-        .install-banner .install-desc {
-            font-size: 12px;
-            color: #888;
-        }
-
-        .install-banner .install-btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .install-banner .install-close {
-            background: none;
-            border: none;
-            color: #aaa;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 4px;
-        }
-
-        /* Nav link back to packing app */
-        .nav-link {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            text-decoration: none;
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            box-shadow: 0 4px 15px rgba(102,126,234,0.4);
-            z-index: 100;
-        }
-
-        /* ─── Settings Drawer ─────────────────────────────────────── */
-        .drawer-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 300;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-
-        .drawer-overlay.open {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .drawer {
-            position: fixed;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: min(380px, 90vw);
-            background: white;
-            z-index: 301;
-            transform: translateX(100%);
-            transition: transform 0.35s cubic-bezier(.4,0,.2,1);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .drawer.open {
-            transform: translateX(0);
-        }
-
-        .dark-mode .drawer {
-            background: #1e1e36;
-        }
-
-        .drawer-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 20px 20px 16px;
-            border-bottom: 1px solid #eee;
-            flex-shrink: 0;
-        }
-
-        .dark-mode .drawer-header {
-            border-bottom-color: #333355;
-        }
-
-        .drawer-header h2 {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .drawer-close {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border: none;
-            background: #f0f0f5;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .dark-mode .drawer-close {
-            background: #333355;
-            color: #e0e0e0;
-        }
-
-        .drawer-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px 20px 30px;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .drawer-section {
-            margin-bottom: 24px;
-        }
-
-        .drawer-section-title {
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: #999;
-            margin-bottom: 12px;
-        }
-
-        /* Toggle rows for sections */
-        .toggle-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #f0f0f5;
-        }
-
-        .dark-mode .toggle-row {
-            border-bottom-color: #2a2a45;
-        }
-
-        .toggle-row:last-child {
-            border-bottom: none;
-        }
-
-        .toggle-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .toggle-label .toggle-emoji {
-            font-size: 18px;
-        }
-
-        /* Toggle switch */
-        .switch {
-            position: relative;
-            width: 44px;
-            height: 24px;
-            flex-shrink: 0;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .switch .slider {
-            position: absolute;
-            inset: 0;
-            background: #ccc;
-            border-radius: 24px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .switch .slider::before {
-            content: '';
-            position: absolute;
-            width: 18px;
-            height: 18px;
-            left: 3px;
-            bottom: 3px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.2s;
-        }
-
-        .switch input:checked + .slider {
-            background: #667eea;
-        }
-
-        .switch input:checked + .slider::before {
-            transform: translateX(20px);
-        }
-
-        /* Article count stepper */
-        .stepper {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .stepper-btn {
-            width: 30px;
-            height: 30px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            background: white;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .dark-mode .stepper-btn {
-            background: #333355;
-            border-color: #444466;
-            color: #e0e0e0;
-        }
-
-        .stepper-val {
-            width: 32px;
-            text-align: center;
-            font-size: 15px;
-            font-weight: 600;
-        }
-
-        /* Custom topic input */
-        .add-topic-row {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .add-topic-row input {
-            flex: 1;
-            padding: 10px 14px;
-            border-radius: 10px;
-            border: 1px solid #ddd;
-            font-size: 14px;
-            background: white;
-            color: #333;
-        }
-
-        .dark-mode .add-topic-row input {
-            background: #262640;
-            border-color: #444466;
-            color: #e0e0e0;
-        }
-
-        .add-topic-row input::placeholder {
-            color: #aaa;
-        }
-
-        .add-topic-btn {
-            padding: 10px 16px;
-            border-radius: 10px;
-            border: none;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .custom-topics-list {
-            margin-top: 10px;
-        }
-
-        .custom-topic-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            background: #eef0ff;
-            font-size: 13px;
-            font-weight: 500;
-            color: #667eea;
-            margin: 4px 4px 4px 0;
-        }
-
-        .dark-mode .custom-topic-chip {
-            background: #2a2d4a;
-        }
-
-        .custom-topic-chip .remove-topic {
-            background: none;
-            border: none;
-            color: #667eea;
-            font-size: 14px;
-            cursor: pointer;
-            padding: 0;
-            line-height: 1;
-        }
-
-        /* Request textarea */
-        .request-textarea {
-            width: 100%;
-            min-height: 120px;
-            padding: 14px;
-            border-radius: 12px;
-            border: 1px solid #ddd;
-            font-size: 14px;
-            font-family: inherit;
-            line-height: 1.5;
-            resize: vertical;
-            background: white;
-            color: #333;
-        }
-
-        .dark-mode .request-textarea {
-            background: #262640;
-            border-color: #444466;
-            color: #e0e0e0;
-        }
-
-        .request-textarea::placeholder {
-            color: #aaa;
-        }
-
-        .request-hint {
-            font-size: 11px;
-            color: #aaa;
-            margin-top: 6px;
-            line-height: 1.4;
-        }
-
-        /* Save bar at drawer bottom */
-        .drawer-footer {
-            padding: 16px 20px;
-            border-top: 1px solid #eee;
-            flex-shrink: 0;
-        }
-
-        .dark-mode .drawer-footer {
-            border-top-color: #333355;
-        }
-
-        .save-btn {
-            width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            letter-spacing: 0.3px;
-        }
-
-        .save-btn:active {
-            opacity: 0.9;
-        }
-
-        .request-notes-banner {
-            background: linear-gradient(135deg, #eef0ff 0%, #f3e5f5 100%);
-            border-radius: 12px;
-            padding: 14px 18px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            cursor: pointer;
-        }
-
-        .dark-mode .request-notes-banner {
-            background: linear-gradient(135deg, #2a2d4a 0%, #2e1e3a 100%);
-        }
-
-        .request-notes-banner .rn-icon {
-            font-size: 20px;
-            flex-shrink: 0;
-            margin-top: 1px;
-        }
-
-        .request-notes-banner .rn-text {
-            font-size: 13px;
-            color: #666;
-            line-height: 1.5;
-        }
-
-        .dark-mode .request-notes-banner .rn-text {
-            color: #aaa;
-        }
-
-        .request-notes-banner .rn-label {
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #667eea;
-            margin-bottom: 2px;
-        }
+        .footer{text-align:center;padding:20px;color:#aaa;font-size:12px}.footer a{color:#667eea;text-decoration:none}
+
+        /* Fixed buttons */
+        .dark-mode-toggle{position:fixed;top:16px;right:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+        .settings-btn{position:fixed;top:16px;right:62px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:transform .3s}
+        .settings-btn:active{transform:rotate(60deg)}
+        .refresh-btn{position:fixed;top:16px;left:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:transform .5s}
+        .refresh-btn.spinning{transform:rotate(360deg)}
+
+        /* Loading */
+        .loading{text-align:center;padding:30px 20px;color:#999}
+        .loading .spinner{display:inline-block;width:24px;height:24px;border:3px solid #e0e0e0;border-top-color:#667eea;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:10px}
+        @keyframes spin{to{transform:rotate(360deg)}}.loading p{font-size:13px}
+        .skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+        .dark-mode .skeleton{background:linear-gradient(90deg,#333355 25%,#3d3d60 50%,#333355 75%);background-size:200% 100%}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .skeleton-line{height:14px;margin-bottom:8px}.skeleton-line.short{width:60%}.skeleton-line.medium{width:80%}
+
+        @media(max-width:480px){.banner h1{font-size:24px}.greeting-card{padding:16px 18px}.story{padding:12px 16px}}
+
+        /* Install banner */
+        .install-banner{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:16px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 -4px 20px rgba(0,0,0,.1);z-index:200;transform:translateY(100%);transition:transform .4s ease}
+        .install-banner.visible{transform:translateY(0)}.dark-mode .install-banner{background:#262640;box-shadow:0 -4px 20px rgba(0,0,0,.4)}
+        .install-banner .install-icon{width:48px;height:48px;border-radius:12px;flex-shrink:0}
+        .install-banner .install-text{flex:1}.install-banner .install-title{font-size:15px;font-weight:700;margin-bottom:2px}
+        .install-banner .install-desc{font-size:12px;color:#888}
+        .install-banner .install-btn{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+        .install-banner .install-close{background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;padding:4px}
+        .nav-link{position:fixed;bottom:20px;right:20px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 15px rgba(102,126,234,.4);z-index:100}
+
+        /* Drawer */
+        .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;opacity:0;pointer-events:none;transition:opacity .3s}
+        .drawer-overlay.open{opacity:1;pointer-events:auto}
+        .drawer{position:fixed;top:0;right:0;bottom:0;width:min(380px,90vw);background:#fff;z-index:301;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
+        .drawer.open{transform:translateX(0)}.dark-mode .drawer{background:#1e1e36}
+        .drawer-header{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 16px;border-bottom:1px solid #eee;flex-shrink:0}
+        .dark-mode .drawer-header{border-bottom-color:#333355}
+        .drawer-header h2{font-size:18px;font-weight:700}
+        .drawer-close{width:36px;height:36px;border-radius:50%;border:none;background:#f0f0f5;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .dark-mode .drawer-close{background:#333355;color:#e0e0e0}
+        .drawer-body{flex:1;overflow-y:auto;padding:16px 20px 30px;-webkit-overflow-scrolling:touch}
+        .drawer-section{margin-bottom:24px}
+        .drawer-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:12px}
+        .drawer-footer{padding:16px 20px;border-top:1px solid #eee;flex-shrink:0}.dark-mode .drawer-footer{border-top-color:#333355}
+        .save-btn{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+        .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0f5}
+        .dark-mode .toggle-row{border-bottom-color:#2a2a45}.toggle-row:last-child{border-bottom:none}
+        .toggle-label{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500}.toggle-label .toggle-emoji{font-size:18px}
+        .switch{position:relative;width:44px;height:24px;flex-shrink:0}
+        .switch input{opacity:0;width:0;height:0}
+        .switch .slider{position:absolute;inset:0;background:#ccc;border-radius:24px;cursor:pointer;transition:background .2s}
+        .switch .slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
+        .switch input:checked+.slider{background:#667eea}.switch input:checked+.slider::before{transform:translateX(20px)}
+        .stepper{display:flex;align-items:center;gap:4px}
+        .stepper-btn{width:30px;height:30px;border-radius:8px;border:1px solid #ddd;background:#fff;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .dark-mode .stepper-btn{background:#333355;border-color:#444466;color:#e0e0e0}
+        .stepper-val{width:32px;text-align:center;font-size:15px;font-weight:600}
+        .add-topic-row{display:flex;gap:8px;margin-top:8px}
+        .add-topic-row input{flex:1;padding:10px 14px;border-radius:10px;border:1px solid #ddd;font-size:14px;background:#fff;color:#333}
+        .dark-mode .add-topic-row input{background:#262640;border-color:#444466;color:#e0e0e0}
+        .add-topic-btn{padding:10px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+        .custom-topics-list{margin-top:10px}
+        .custom-topic-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:#eef0ff;font-size:13px;font-weight:500;color:#667eea;margin:4px 4px 4px 0}
+        .dark-mode .custom-topic-chip{background:#2a2d4a}
+        .custom-topic-chip .remove-topic{background:none;border:none;color:#667eea;font-size:14px;cursor:pointer;padding:0;line-height:1}
+        .prefs-url-input{width:100%;padding:10px 14px;border-radius:10px;border:1px solid #ddd;font-size:13px;background:#fff;color:#333;margin-top:8px}
+        .dark-mode .prefs-url-input{background:#262640;border-color:#444466;color:#e0e0e0}
+        .prefs-hint{font-size:11px;color:#aaa;margin-top:6px;line-height:1.4}
     </style>
 </head>
 <body>
     <button class="dark-mode-toggle" onclick="toggleDarkMode()">&#x1F319;</button>
-    <button class="settings-btn" onclick="openDrawer()" title="Settings & Requests">&#x2699;&#xFE0F;</button>
-    <button class="refresh-btn" onclick="refreshNewsletter()" title="Refresh stories">&#x1F504;</button>
+    <button class="settings-btn" onclick="openDrawer()" title="Settings">&#x2699;&#xFE0F;</button>
+    <button class="refresh-btn" onclick="refreshNewsletter()" title="Refresh">&#x1F504;</button>
     <a class="nav-link" href="index.html" title="Packing List">&#x1F9F3;</a>
 
-    <!-- Settings / Request Drawer -->
     <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
     <div class="drawer" id="drawer">
-        <div class="drawer-header">
-            <h2>&#x2699;&#xFE0F; My Rundown</h2>
-            <button class="drawer-close" onclick="closeDrawer()">&times;</button>
-        </div>
-        <div class="drawer-body" id="drawerBody">
-            <!-- populated by JS -->
-        </div>
-        <div class="drawer-footer">
-            <button class="save-btn" onclick="saveAndReload()">Save & Refresh</button>
-        </div>
+        <div class="drawer-header"><h2>&#x2699;&#xFE0F; My Rundown</h2><button class="drawer-close" onclick="closeDrawer()">&times;</button></div>
+        <div class="drawer-body" id="drawerBody"></div>
+        <div class="drawer-footer"><button class="save-btn" onclick="saveAndReload()">Save &amp; Refresh</button></div>
     </div>
 
-    <!-- Install Banner (shown on iOS/Android when not installed) -->
     <div class="install-banner" id="installBanner">
-        <img class="install-icon" src="icon-192.png" alt="App Icon">
-        <div class="install-text">
-            <div class="install-title">Add to Home Screen</div>
-            <div class="install-desc" id="installDesc">Get your newsletter with one tap</div>
-        </div>
+        <img class="install-icon" src="icon-192.png" alt="Icon">
+        <div class="install-text"><div class="install-title">Add to Home Screen</div><div class="install-desc" id="installDesc">Get your newsletter with one tap</div></div>
         <button class="install-btn" id="installBtn" onclick="handleInstall()">Add</button>
         <button class="install-close" onclick="dismissInstall()">&times;</button>
     </div>
@@ -1014,40 +219,32 @@
         <div class="tagline">Your daily dose of what matters</div>
     </div>
 
-    <div class="container">
-        <div class="greeting-card">
-            <div class="greeting" id="greeting"></div>
-            <div class="summary" id="daySummary"></div>
-        </div>
-
-        <div id="requestNotesBanner"></div>
-        <div id="weatherSection"></div>
-        <div id="newsletterContent">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>Brewing your morning newsletter...</p>
-            </div>
+    <div class="page-layout">
+        <div class="sidebar"><div id="weatherWidget"></div></div>
+        <div class="feed">
+            <div class="greeting-card"><div class="greeting" id="greeting"></div><div class="summary" id="daySummary"></div></div>
+            <div class="mobile-weather" id="mobileWeather"></div>
+            <div id="newsletterContent"><div class="loading"><div class="spinner"></div><p>Brewing your morning newsletter...</p></div></div>
         </div>
     </div>
 
     <script>
-        // ─── Default Sections ────────────────────────────────────────
-        const DEFAULT_SECTIONS = [
-            { id: 'headlines', icon: '\u{1F4F0}', title: 'Top Stories', theme: 'section-headlines', subreddit: 'news', hnTag: 'front_page', enabled: true },
-            { id: 'world', icon: '\u{1F30D}', title: 'World News', theme: 'section-world', subreddit: 'worldnews', hnTag: null, enabled: true },
-            { id: 'tech', icon: '\u{1F4BB}', title: 'Tech', theme: 'section-tech', subreddit: 'technology', hnTag: 'tech', enabled: true },
-            { id: 'science', icon: '\u{1F52C}', title: 'Science', theme: 'section-science', subreddit: 'science', hnTag: null, enabled: true },
-            { id: 'sports', icon: '\u26BD', title: 'Sports', theme: 'section-sports', subreddit: 'sports', hnTag: null, enabled: true },
-            { id: 'gaming', icon: '\u{1F3AE}', title: 'Gaming', theme: 'section-gaming', subreddit: 'gaming', hnTag: null, enabled: true },
-            { id: 'movies', icon: '\u{1F3AC}', title: 'Movies & TV', theme: 'section-movies', subreddit: 'movies', hnTag: null, enabled: true },
-            { id: 'music', icon: '\u{1F3B5}', title: 'Music', theme: 'section-music', subreddit: 'Music', hnTag: null, enabled: true },
-            { id: 'food', icon: '\u{1F373}', title: 'Food & Cooking', theme: 'section-food', subreddit: 'food', hnTag: null, enabled: true },
-            { id: 'finance', icon: '\u{1F4B0}', title: 'Finance & Money', theme: 'section-finance', subreddit: 'personalfinance', hnTag: null, enabled: true },
-            { id: 'health', icon: '\u{1F3CB}\uFE0F', title: 'Health & Fitness', theme: 'section-health', subreddit: 'fitness', hnTag: null, enabled: true },
-            { id: 'work', icon: '\u{1F4BC}', title: 'Work & Productivity', theme: 'section-work', subreddit: 'productivity', hnTag: null, enabled: true },
-            { id: 'interesting', icon: '\u{1F9E0}', title: 'Interesting Finds', theme: 'section-interesting', subreddit: 'todayilearned', hnTag: null, enabled: true },
-        ];
-
+        const SECTION_REGISTRY = {
+            'top stories':          { id: 'headlines', icon: '\u{1F4F0}', theme: 'section-headlines', subreddits: ['news'], hnMix: true },
+            'world news':           { id: 'world', icon: '\u{1F30D}', theme: 'section-world', subreddits: ['worldnews'], hnMix: false },
+            'tech':                 { id: 'tech', icon: '\u{1F4BB}', theme: 'section-tech', subreddits: ['technology'], hnMix: true },
+            'ai & machine learning':{ id: 'ai', icon: '\u{1F916}', theme: 'section-ai', subreddits: ['artificial','MachineLearning','ChatGPT','ClaudeAI'], hnMix: false },
+            'science':              { id: 'science', icon: '\u{1F52C}', theme: 'section-science', subreddits: ['science'], hnMix: false },
+            'sports':               { id: 'sports', icon: '\u26BD', theme: 'section-sports', subreddits: ['sports'], hnMix: false },
+            'gaming':               { id: 'gaming', icon: '\u{1F3AE}', theme: 'section-gaming', subreddits: ['gaming'], hnMix: false },
+            'movies & tv':          { id: 'movies', icon: '\u{1F3AC}', theme: 'section-movies', subreddits: ['movies'], hnMix: false },
+            'music':                { id: 'music', icon: '\u{1F3B5}', theme: 'section-music', subreddits: ['Music'], hnMix: false },
+            'food & cooking':       { id: 'food', icon: '\u{1F373}', theme: 'section-food', subreddits: ['food'], hnMix: false },
+            'finance & money':      { id: 'finance', icon: '\u{1F4B0}', theme: 'section-finance', subreddits: ['personalfinance'], hnMix: false },
+            'health & fitness':     { id: 'health', icon: '\u{1F3CB}\uFE0F', theme: 'section-health', subreddits: ['fitness'], hnMix: false },
+            'work & productivity':  { id: 'work', icon: '\u{1F4BC}', theme: 'section-work', subreddits: ['productivity'], hnMix: false },
+            'interesting finds':    { id: 'interesting', icon: '\u{1F9E0}', theme: 'section-interesting', subreddits: ['todayilearned'], hnMix: false },
+        };
         const QUOTES = [
             { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
             { text: "Innovation distinguishes between a leader and a follower.", author: "Steve Jobs" },
@@ -1063,598 +260,212 @@
             { text: "The only limit to our realization of tomorrow is our doubts of today.", author: "Franklin D. Roosevelt" },
             { text: "Do what you can, with what you have, where you are.", author: "Theodore Roosevelt" },
             { text: "Everything you've ever wanted is on the other side of fear.", author: "George Addair" },
-            { text: "Music expresses that which cannot be said and on which it is impossible to be silent.", author: "Victor Hugo" },
             { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
             { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
             { text: "Not all those who wander are lost.", author: "J.R.R. Tolkien" },
             { text: "Life is what happens when you're busy making other plans.", author: "John Lennon" },
             { text: "The only impossible journey is the one you never begin.", author: "Tony Robbins" },
+            { text: "Music expresses that which cannot be said and on which it is impossible to be silent.", author: "Victor Hugo" },
         ];
-
         const ON_THIS_DAY = {
-            "01-01": "On this day in 1983, the Internet was born when ARPANET switched to TCP/IP.",
-            "01-15": "On this day in 2001, Wikipedia was launched by Jimmy Wales and Larry Sanger.",
-            "01-27": "On this day in 1756, Wolfgang Amadeus Mozart was born in Salzburg, Austria.",
-            "02-01": "On this day in 2003, the Space Shuttle Columbia disintegrated during re-entry.",
-            "02-04": "On this day in 2004, Mark Zuckerberg launched Facebook from his Harvard dorm room.",
-            "02-06": "On this day in 1952, Queen Elizabeth II began her reign after the death of King George VI.",
-            "02-07": "On this day in 1964, The Beatles arrived in New York City for the first time.",
-            "02-12": "On this day in 1809, Abraham Lincoln and Charles Darwin were both born.",
-            "02-14": "On this day in 2005, YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim.",
-            "02-16": "On this day in 1923, Howard Carter opened the sealed doorway to King Tutankhamun's burial chamber.",
-            "02-17": "On this day in 1996, Deep Blue, a chess computer, defeated Garry Kasparov for the first time.",
-            "02-22": "On this day in 1997, scientists in Scotland announced the cloning of Dolly the sheep.",
-            "02-28": "On this day in 1953, James Watson and Francis Crick announced the discovery of DNA's double helix.",
-            "03-08": "On this day in 1979, Philips demonstrated the first compact disc publicly.",
-            "03-12": "On this day in 1989, Tim Berners-Lee submitted his proposal for the World Wide Web.",
-            "03-14": "On this day in 1879, Albert Einstein was born in Ulm, Germany. Happy Pi Day!",
-            "03-21": "On this day in 2006, Jack Dorsey posted the first-ever tweet.",
-            "04-01": "On this day in 1976, Steve Jobs and Steve Wozniak founded Apple Computer Company.",
-            "04-12": "On this day in 1961, Yuri Gagarin became the first human in space.",
-            "04-22": "On this day in 1970, the first Earth Day was celebrated across the United States.",
-            "05-01": "On this day in 1931, the Empire State Building was officially opened.",
-            "05-25": "On this day in 1977, Star Wars was released in theaters for the first time.",
-            "06-07": "On this day in 1954, Alan Turing, father of computer science, passed away.",
-            "06-29": "On this day in 2007, the first iPhone went on sale at Apple stores across the US.",
-            "07-04": "On this day in 1776, the United States Declaration of Independence was adopted.",
-            "07-20": "On this day in 1969, Neil Armstrong and Buzz Aldrin walked on the Moon.",
-            "08-06": "On this day in 1991, the World Wide Web became publicly available.",
-            "09-05": "On this day in 1946, Freddie Mercury was born in Zanzibar.",
-            "09-09": "On this day in 2014, Apple unveiled the Apple Watch for the first time.",
-            "10-29": "On this day in 1969, the first ARPANET message was sent from UCLA to Stanford.",
-            "11-10": "On this day in 1983, Bill Gates introduced Windows 1.0.",
-            "12-25": "On this day in 1990, Tim Berners-Lee made the first successful HTTP communication.",
+            "01-01":"On this day in 1983, the Internet was born when ARPANET switched to TCP/IP.",
+            "01-15":"On this day in 2001, Wikipedia was launched by Jimmy Wales and Larry Sanger.",
+            "01-27":"On this day in 1756, Wolfgang Amadeus Mozart was born in Salzburg, Austria.",
+            "02-01":"On this day in 2003, the Space Shuttle Columbia disintegrated during re-entry.",
+            "02-04":"On this day in 2004, Mark Zuckerberg launched Facebook from his Harvard dorm room.",
+            "02-06":"On this day in 1952, Queen Elizabeth II began her reign after the death of King George VI.",
+            "02-07":"On this day in 1964, The Beatles arrived in New York City for the first time.",
+            "02-12":"On this day in 1809, Abraham Lincoln and Charles Darwin were both born.",
+            "02-14":"On this day in 2005, YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim.",
+            "02-16":"On this day in 1923, Howard Carter opened the sealed doorway to King Tutankhamun's burial chamber.",
+            "02-17":"On this day in 1996, Deep Blue, a chess computer, defeated Garry Kasparov for the first time.",
+            "02-22":"On this day in 1997, scientists in Scotland announced the cloning of Dolly the sheep.",
+            "02-28":"On this day in 1953, James Watson and Francis Crick announced the discovery of DNA's double helix.",
+            "03-08":"On this day in 1979, Philips demonstrated the first compact disc publicly.",
+            "03-12":"On this day in 1989, Tim Berners-Lee submitted his proposal for the World Wide Web.",
+            "03-14":"On this day in 1879, Albert Einstein was born in Ulm, Germany. Happy Pi Day!",
+            "03-21":"On this day in 2006, Jack Dorsey posted the first-ever tweet.",
+            "04-01":"On this day in 1976, Steve Jobs and Steve Wozniak founded Apple Computer Company.",
+            "04-12":"On this day in 1961, Yuri Gagarin became the first human in space.",
+            "04-22":"On this day in 1970, the first Earth Day was celebrated across the United States.",
+            "05-01":"On this day in 1931, the Empire State Building was officially opened.",
+            "05-25":"On this day in 1977, Star Wars was released in theaters for the first time.",
+            "06-07":"On this day in 1954, Alan Turing, father of computer science, passed away.",
+            "06-29":"On this day in 2007, the first iPhone went on sale at Apple stores across the US.",
+            "07-04":"On this day in 1776, the United States Declaration of Independence was adopted.",
+            "07-20":"On this day in 1969, Neil Armstrong and Buzz Aldrin walked on the Moon.",
+            "08-06":"On this day in 1991, the World Wide Web became publicly available.",
+            "09-05":"On this day in 1946, Freddie Mercury was born in Zanzibar.",
+            "09-09":"On this day in 2014, Apple unveiled the Apple Watch for the first time.",
+            "10-29":"On this day in 1969, the first ARPANET message was sent from UCLA to Stanford.",
+            "11-10":"On this day in 1983, Bill Gates introduced Windows 1.0.",
+            "12-25":"On this day in 1990, Tim Berners-Lee made the first successful HTTP communication.",
         };
 
-        // ─── Settings / State ────────────────────────────────────────
-        function loadSettings() {
-            const defaults = {
-                sections: DEFAULT_SECTIONS.map(s => ({ id: s.id, enabled: true })),
-                articlesPerSection: 6,
-                customTopics: [],
-                requestNotes: '',
-            };
-            try {
-                const saved = JSON.parse(localStorage.getItem('rundownSettings'));
-                if (saved) {
-                    // Merge: keep any new default sections that aren't in saved
-                    const savedIds = new Set(saved.sections.map(s => s.id));
-                    for (const ds of DEFAULT_SECTIONS) {
-                        if (!savedIds.has(ds.id)) {
-                            saved.sections.push({ id: ds.id, enabled: true });
-                        }
-                    }
-                    return { ...defaults, ...saved };
-                }
-            } catch (e) {}
-            return defaults;
+        // ─── Preferences parser ──────────────────────────────────
+        let prefs = null;
+        function parsePreferencesMd(md) {
+            const p = { articlesPerSection:6, prefsUrl:'', sections:[], customTopics:[], requests:'', displayOptions:{} };
+            const artMatch = md.match(/\*\*Articles per section:\*\*\s*(\d+)/i);
+            if (artMatch) p.articlesPerSection = parseInt(artMatch[1]);
+            const urlMatch = md.match(/\*\*Preferences URL:\*\*\s*(.+)/i);
+            if (urlMatch) { const v=urlMatch[1].trim(); if(v&&!v.startsWith('*')&&!v.startsWith('(')) p.prefsUrl=v; }
+            const sectionRegex = /- \[(x| )\]\s+(.+)/gi;
+            let m; while((m=sectionRegex.exec(md))!==null) p.sections.push({title:m[2].trim(),enabled:m[1].toLowerCase()==='x'});
+            const ctMatch = md.match(/## Custom Topics[\s\S]*?```\s*([\s\S]*?)```/i);
+            if(ctMatch) p.customTopics=ctMatch[1].split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+            const reqMatch = md.match(/## Requests[\s\S]*?```\s*([\s\S]*?)```/i);
+            if(reqMatch) p.requests=reqMatch[1].trim();
+            const dispSection = md.match(/## Section Display Options[\s\S]*$/i);
+            if(dispSection){ const or=/\*\*(.+?):\*\*\s*(.+)/gi; let om; while((om=or.exec(dispSection[0]))!==null) p.displayOptions[om[1].trim().toLowerCase()]=om[2].trim().toLowerCase(); }
+            return p;
         }
-
-        function saveSettings(settings) {
-            localStorage.setItem('rundownSettings', JSON.stringify(settings));
+        async function loadPreferences() {
+            const savedUrl = localStorage.getItem('rundownPrefsUrl');
+            const urls = []; if(savedUrl) urls.push(savedUrl); urls.push('preferences.md');
+            for(const url of urls){ try{ const r=await fetch(url,{cache:'no-cache'}); if(r.ok){ const md=await r.text(); const p=parsePreferencesMd(md);
+                if(p.prefsUrl&&p.prefsUrl!==url&&!savedUrl){ try{const r2=await fetch(p.prefsUrl,{cache:'no-cache'}); if(r2.ok){prefs=parsePreferencesMd(await r2.text()); localStorage.setItem('rundownPrefsUrl',p.prefsUrl); return;}}catch(e){} }
+                prefs=p; return; }}catch(e){} }
+            prefs={articlesPerSection:6,prefsUrl:'',sections:Object.keys(SECTION_REGISTRY).map(t=>({title:t.split(' ').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '),enabled:true})),customTopics:[],requests:'',displayOptions:{}};
         }
-
-        let settings = loadSettings();
-
-        function getActiveSections() {
-            const enabledIds = new Set(settings.sections.filter(s => s.enabled).map(s => s.id));
-            const active = DEFAULT_SECTIONS.filter(s => enabledIds.has(s.id));
-            // Add custom topics as sections
-            for (const ct of settings.customTopics) {
-                active.push({
-                    id: 'custom_' + ct.subreddit,
-                    icon: '\u2B50',
-                    title: ct.label || ('r/' + ct.subreddit),
-                    theme: 'section-custom',
-                    subreddit: ct.subreddit,
-                    hnTag: null,
-                    enabled: true,
-                });
-            }
+        function getActiveSections(){
+            const active=[];
+            for(const sec of prefs.sections){ if(!sec.enabled) continue; const key=sec.title.toLowerCase(); const reg=SECTION_REGISTRY[key]; if(reg) active.push({...reg,title:sec.title}); }
+            for(const sub of prefs.customTopics) active.push({id:'custom_'+sub,icon:'\u2B50',title:'r/'+sub,theme:'section-custom',subreddits:[sub],hnMix:false});
             return active;
         }
-
-        // ─── Initialize ────────────────────────────────────────────
-        document.addEventListener('DOMContentLoaded', () => {
-            initDarkMode();
-            setDateAndGreeting();
-            renderRequestNotesBanner();
-            loadNewsletter();
-        });
-
-        // ─── Dark Mode ─────────────────────────────────────────────
-        function initDarkMode() {
-            if (localStorage.getItem('newsletterDarkMode') === 'true') {
-                document.body.classList.add('dark-mode');
-                document.querySelector('.dark-mode-toggle').textContent = '\u2600\uFE0F';
-            }
+        function getSectionDisplayOption(sectionId){
+            for(const [name,opt] of Object.entries(prefs.displayOptions)){ const reg=SECTION_REGISTRY[name.toLowerCase()]; if(reg&&reg.id===sectionId) return opt; }
+            return null;
         }
 
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            const isDark = document.body.classList.contains('dark-mode');
-            localStorage.setItem('newsletterDarkMode', isDark);
-            document.querySelector('.dark-mode-toggle').textContent = isDark ? '\u2600\uFE0F' : '\u{1F319}';
+        // ─── Init ────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', async()=>{ initDarkMode(); setDateAndGreeting(); await loadPreferences(); loadNewsletter(); });
+
+        function initDarkMode(){ if(localStorage.getItem('newsletterDarkMode')==='true'){document.body.classList.add('dark-mode');document.querySelector('.dark-mode-toggle').textContent='\u2600\uFE0F';} }
+        function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); const d=document.body.classList.contains('dark-mode'); localStorage.setItem('newsletterDarkMode',d); document.querySelector('.dark-mode-toggle').textContent=d?'\u2600\uFE0F':'\u{1F319}'; }
+
+        function setDateAndGreeting(){
+            const now=new Date(); document.getElementById('currentDate').textContent=now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+            const h=now.getHours(); let g='Good morning!'; if(h>=12&&h<17) g='Good afternoon!'; else if(h>=17) g='Good evening!';
+            const dn=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][now.getDay()];
+            const gs=[`${g} Happy ${dn}.`,`${g} Here's your ${dn} briefing.`,`${g} Let's get you caught up.`,`${g} Ready for ${dn}?`];
+            document.getElementById('greeting').textContent=gs[Math.floor(Math.random()*gs.length)];
+            document.getElementById('daySummary').textContent='Here\u2019s what\u2019s happening in the world today \u2014 your personalized briefing across news, tech, entertainment, and more.';
         }
 
-        // ─── Date & Greeting ───────────────────────────────────────
-        function setDateAndGreeting() {
-            const now = new Date();
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
-
-            const hour = now.getHours();
-            let greetText = 'Good morning!';
-            if (hour >= 12 && hour < 17) greetText = 'Good afternoon!';
-            else if (hour >= 17) greetText = 'Good evening!';
-
-            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            const dayName = dayNames[now.getDay()];
-
-            const greetings = [
-                `${greetText} Happy ${dayName}.`,
-                `${greetText} Here's your ${dayName} briefing.`,
-                `${greetText} Let's get you caught up.`,
-                `${greetText} Ready for ${dayName}?`,
-            ];
-
-            document.getElementById('greeting').textContent = greetings[Math.floor(Math.random() * greetings.length)];
-
-            const sectionCount = getActiveSections().length;
-            document.getElementById('daySummary').textContent =
-                `Here\u2019s what\u2019s happening across ${sectionCount} topics today \u2014 from headlines and world news to tech, science, sports, entertainment, and more.`;
+        // ─── Drawer ──────────────────────────────────────────────
+        function openDrawer(){ renderDrawerBody(); document.getElementById('drawerOverlay').classList.add('open'); document.getElementById('drawer').classList.add('open'); }
+        function closeDrawer(){ document.getElementById('drawerOverlay').classList.remove('open'); document.getElementById('drawer').classList.remove('open'); }
+        function renderDrawerBody(){
+            const body=document.getElementById('drawerBody');
+            let t=prefs.sections.map(sec=>{const key=sec.title.toLowerCase();const reg=SECTION_REGISTRY[key];const icon=reg?reg.icon:'\u2B50';
+                return '<div class="toggle-row"><div class="toggle-label"><span class="toggle-emoji">'+icon+'</span><span>'+sec.title+'</span></div><label class="switch"><input type="checkbox" data-section-title="'+sec.title+'" '+(sec.enabled?'checked':'')+'><span class="slider"></span></label></div>';}).join('');
+            let chips=prefs.customTopics.map((s,i)=>'<span class="custom-topic-chip">r/'+escapeHtml(s)+'<button class="remove-topic" onclick="removeCustomTopic('+i+')">&times;</button></span>').join('');
+            body.innerHTML='<div class="drawer-section"><div class="drawer-section-title">Articles Per Section</div><div class="toggle-row"><div class="toggle-label">Number of articles</div><div class="stepper"><button class="stepper-btn" onclick="adjustCount(-1)">&minus;</button><span class="stepper-val" id="articleCount">'+prefs.articlesPerSection+'</span><button class="stepper-btn" onclick="adjustCount(1)">+</button></div></div></div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Sections</div>'+t+'</div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Custom Topics</div><p style="font-size:13px;color:#888;margin-bottom:8px">Add any subreddit as a custom section.</p><div class="add-topic-row"><input type="text" id="customSubreddit" placeholder="e.g. space, nba, vinyl" /><button class="add-topic-btn" onclick="addCustomTopic()">Add</button></div><div class="custom-topics-list">'+chips+'</div></div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Preferences File</div><p class="prefs-hint">Load settings from an external URL (e.g. GitHub Gist raw link). Leave blank for local preferences.md.</p><input class="prefs-url-input" id="prefsUrlInput" type="url" placeholder="https://gist.githubusercontent.com/..." value="'+escapeHtml(prefs.prefsUrl||'')+'" /></div>';
+        }
+        function adjustCount(d){ prefs.articlesPerSection=Math.max(3,Math.min(12,prefs.articlesPerSection+d)); document.getElementById('articleCount').textContent=prefs.articlesPerSection; }
+        function addCustomTopic(){ const input=document.getElementById('customSubreddit'); const v=input.value.trim().replace(/^r\//,'').replace(/\s+/g,''); if(!v)return; if(prefs.customTopics.some(c=>c.toLowerCase()===v.toLowerCase()))return; prefs.customTopics.push(v); input.value=''; renderDrawerBody(); }
+        function removeCustomTopic(i){ prefs.customTopics.splice(i,1); renderDrawerBody(); }
+        function saveAndReload(){
+            document.querySelectorAll('[data-section-title]').forEach(cb=>{const t=cb.dataset.sectionTitle;const s=prefs.sections.find(x=>x.title===t);if(s)s.enabled=cb.checked;});
+            const u=document.getElementById('prefsUrlInput'); if(u){const v=u.value.trim();if(v)localStorage.setItem('rundownPrefsUrl',v);else localStorage.removeItem('rundownPrefsUrl');}
+            closeDrawer(); loadNewsletter();
         }
 
-        // ─── Request Notes Banner ───────────────────────────────────
-        function renderRequestNotesBanner() {
-            const el = document.getElementById('requestNotesBanner');
-            if (settings.requestNotes.trim()) {
-                el.innerHTML = `
-                    <div class="request-notes-banner" onclick="openDrawer()">
-                        <div class="rn-icon">\u{1F4DD}</div>
-                        <div>
-                            <div class="rn-label">Your Requests</div>
-                            <div class="rn-text">${escapeHtml(settings.requestNotes.substring(0, 200))}${settings.requestNotes.length > 200 ? '...' : ''}</div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                el.innerHTML = '';
-            }
+        // ─── Fetch helpers ───────────────────────────────────────
+        async function fetchReddit(subreddit, limit=6){
+            try{ const r=await fetch('https://www.reddit.com/r/'+subreddit+'/hot.json?limit='+(limit+5)+'&raw_json=1',{headers:{'Accept':'application/json'}});
+                if(!r.ok) throw new Error('Reddit '+r.status); const d=await r.json();
+                return d.data.children.filter(c=>!c.data.stickied).slice(0,limit).map(c=>({title:c.data.title,summary:c.data.selftext?c.data.selftext.substring(0,160)+(c.data.selftext.length>160?'...':''):'',url:c.data.url.startsWith('/r/')?'https://www.reddit.com'+c.data.url:c.data.url,score:c.data.score,source:'r/'+subreddit,comments:c.data.num_comments}));
+            }catch(e){console.warn('Failed r/'+subreddit,e);return [];}
+        }
+        async function fetchMultiReddit(subs, limit=6){
+            if(subs.length===1) return fetchReddit(subs[0],limit);
+            const per=Math.max(2,Math.ceil(limit/subs.length));
+            const results=await Promise.all(subs.map(s=>fetchReddit(s,per)));
+            const merged=results.flat(); merged.sort((a,b)=>b.score-a.score); return merged.slice(0,limit);
+        }
+        async function fetchHackerNews(limit=8){
+            try{ const r=await fetch('https://hacker-news.firebaseio.com/v0/topstories.json'); if(!r.ok) throw new Error('HN '+r.status);
+                const ids=await r.json(); const top=ids.slice(0,limit);
+                const stories=await Promise.all(top.map(id=>fetch('https://hacker-news.firebaseio.com/v0/item/'+id+'.json').then(r=>r.json())));
+                return stories.map(s=>({title:s.title,summary:'',url:s.url||'https://news.ycombinator.com/item?id='+s.id,score:s.score,source:'Hacker News',comments:s.descendants||0}));
+            }catch(e){console.warn('Failed HN',e);return [];}
+        }
+        async function fetchWeather(){
+            try{ const r=await fetch('https://wttr.in/?format=j1',{headers:{'Accept':'application/json'}}); if(!r.ok) throw new Error('Weather '+r.status);
+                const d=await r.json(); const c=d.current_condition[0]; const a=d.nearest_area[0];
+                return {temp:c.temp_F,feels:c.FeelsLikeF,desc:c.weatherDesc[0].value,humidity:c.humidity,city:a.areaName[0].value,region:a.region[0].value,code:parseInt(c.weatherCode)};
+            }catch(e){console.warn('Failed weather',e);return null;}
+        }
+        function getWeatherEmoji(code){
+            if(code===113)return'\u2600\uFE0F';if(code===116)return'\u26C5';if([119,122].includes(code))return'\u2601\uFE0F';
+            if([143,248,260].includes(code))return'\u{1F32B}\uFE0F';if([176,263,266,293,296,299,302,305,308,311,314,353,356,359].includes(code))return'\u{1F327}\uFE0F';
+            if([179,182,185,227,230,317,320,323,326,329,332,335,338,350,362,365,368,371,374,377,392,395].includes(code))return'\u{1F328}\uFE0F';
+            if([200,386,389].includes(code))return'\u26C8\uFE0F';return'\u{1F324}\uFE0F';
         }
 
-        // ─── Drawer (Settings & Requests) ───────────────────────────
-        function openDrawer() {
-            settings = loadSettings();
-            renderDrawerBody();
-            document.getElementById('drawerOverlay').classList.add('open');
-            document.getElementById('drawer').classList.add('open');
+        // ─── Render ──────────────────────────────────────────────
+        function renderWeather(w){
+            const wEl=document.getElementById('weatherWidget'),mEl=document.getElementById('mobileWeather');
+            if(!w){wEl.innerHTML='';mEl.innerHTML='';return;}
+            const e=getWeatherEmoji(w.code);
+            wEl.innerHTML='<div class="weather-widget"><div class="ww-icon">'+e+'</div><div class="ww-temp">'+w.temp+'\u00B0F</div><div class="ww-feels">Feels like '+w.feels+'\u00B0F</div><div class="ww-desc">'+w.desc+'</div><div class="ww-location">'+w.city+', '+w.region+'</div><div class="ww-humidity">'+w.humidity+'% humidity</div></div>';
+            mEl.innerHTML='<div class="weather-strip"><div class="weather-icon">'+e+'</div><div class="weather-info"><div class="weather-temp">'+w.temp+'\u00B0F (feels '+w.feels+'\u00B0F)</div><div class="weather-desc">'+w.desc+' \u2022 '+w.city+', '+w.region+' \u2022 '+w.humidity+'% humidity</div></div></div>';
         }
-
-        function closeDrawer() {
-            document.getElementById('drawerOverlay').classList.remove('open');
-            document.getElementById('drawer').classList.remove('open');
-        }
-
-        function renderDrawerBody() {
-            const body = document.getElementById('drawerBody');
-
-            // Section toggles
-            let togglesHtml = DEFAULT_SECTIONS.map(ds => {
-                const ss = settings.sections.find(s => s.id === ds.id);
-                const checked = ss ? ss.enabled : true;
-                return `
-                    <div class="toggle-row">
-                        <div class="toggle-label">
-                            <span class="toggle-emoji">${ds.icon}</span>
-                            <span>${ds.title}</span>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" data-section-id="${ds.id}" ${checked ? 'checked' : ''}>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                `;
+        function renderSection(section,stories,displayOpt){
+            if(!stories||stories.length===0) return '';
+            const titlesOnly=displayOpt==='titles-only';
+            const tags=['hot','trending','new'];
+            const sh=stories.map((s,i)=>{
+                const tag=i===0?'<span class="story-tag tag-'+tags[Math.floor(Math.random()*tags.length)]+'">'+tags[Math.floor(Math.random()*tags.length)]+'</span>':'';
+                const sum=(!titlesOnly&&s.summary)?'<div class="story-summary">'+escapeHtml(s.summary)+'</div>':'';
+                return '<div class="story"><div class="story-headline"><a href="'+escapeHtml(s.url)+'" target="_blank" rel="noopener">'+escapeHtml(s.title)+'</a></div>'+sum+'<div class="story-meta">'+tag+'<span>'+s.source+'</span>'+(s.comments?'<span>'+s.comments+' comments</span>':'')+'</div></div>';
             }).join('');
-
-            // Custom topics chips
-            let customChipsHtml = settings.customTopics.map((ct, i) => `
-                <span class="custom-topic-chip">
-                    r/${escapeHtml(ct.subreddit)}
-                    <button class="remove-topic" onclick="removeCustomTopic(${i})">&times;</button>
-                </span>
-            `).join('');
-
-            body.innerHTML = `
-                <div class="drawer-section">
-                    <div class="drawer-section-title">Articles Per Section</div>
-                    <div class="toggle-row">
-                        <div class="toggle-label">Number of articles</div>
-                        <div class="stepper">
-                            <button class="stepper-btn" onclick="adjustCount(-1)">&minus;</button>
-                            <span class="stepper-val" id="articleCount">${settings.articlesPerSection}</span>
-                            <button class="stepper-btn" onclick="adjustCount(1)">+</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="drawer-section">
-                    <div class="drawer-section-title">Sections</div>
-                    ${togglesHtml}
-                </div>
-
-                <div class="drawer-section">
-                    <div class="drawer-section-title">Custom Topics</div>
-                    <p style="font-size:13px;color:#888;margin-bottom:8px;">Add any subreddit as a custom section.</p>
-                    <div class="add-topic-row">
-                        <input type="text" id="customSubreddit" placeholder="e.g. space, nba, vinyl" />
-                        <button class="add-topic-btn" onclick="addCustomTopic()">Add</button>
-                    </div>
-                    <div class="custom-topics-list" id="customTopicsList">${customChipsHtml}</div>
-                </div>
-
-                <div class="drawer-section">
-                    <div class="drawer-section-title">Requests & Notes</div>
-                    <textarea class="request-textarea" id="requestNotes" placeholder="Type anything here — topics you want covered, adjustments, special requests, reminders for yourself...&#10;&#10;Examples:&#10;- More NBA and less soccer&#10;- Add a dad jokes section&#10;- Focus on AI and machine learning&#10;- Show me cooking recipes on weekends">${escapeHtml(settings.requestNotes)}</textarea>
-                    <div class="request-hint">These notes are saved on your device and shown at the top of your newsletter as a personal reminder.</div>
-                </div>
-            `;
+            const sid=section.id+'_sec';
+            return '<div class="section '+section.theme+'"><div class="section-header" onclick="toggleSection(\''+sid+'\')"><div class="section-icon">'+section.icon+'</div><div class="section-title">'+section.title+'</div><div class="collapse-chevron">\u25BC</div></div><div class="section-body" id="'+sid+'">'+sh+'</div></div>';
         }
+        function toggleSection(id){ const b=document.getElementById(id); b.classList.toggle('collapsed'); b.previousElementSibling.classList.toggle('collapsed'); }
+        function renderQuote(){ const q=QUOTES[Math.floor(Math.random()*QUOTES.length)]; return '<div class="quote-card"><div class="quote-text">\u201C'+escapeHtml(q.text)+'\u201D</div><div class="quote-author">\u2014 '+escapeHtml(q.author)+'</div></div>'; }
+        function renderOnThisDay(){ const n=new Date(); const k=String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); const f=ON_THIS_DAY[k]; if(!f)return''; return '<div class="on-this-day"><h3>\u{1F4C5} On This Day</h3><p>'+escapeHtml(f)+'</p></div>'; }
+        function renderFooter(){ return '<div class="footer"><p>Your Morning Rundown &bull; Brewed fresh at '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</p><p style="margin-top:4px"><a href="index.html">Open Packing List</a></p></div>'; }
+        function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
-        function adjustCount(delta) {
-            settings.articlesPerSection = Math.max(3, Math.min(12, settings.articlesPerSection + delta));
-            document.getElementById('articleCount').textContent = settings.articlesPerSection;
-        }
-
-        function addCustomTopic() {
-            const input = document.getElementById('customSubreddit');
-            const val = input.value.trim().replace(/^r\//, '').replace(/\s+/g, '');
-            if (!val) return;
-            if (settings.customTopics.some(ct => ct.subreddit.toLowerCase() === val.toLowerCase())) return;
-            settings.customTopics.push({ subreddit: val, label: 'r/' + val });
-            input.value = '';
-            renderDrawerBody();
-        }
-
-        function removeCustomTopic(index) {
-            settings.customTopics.splice(index, 1);
-            renderDrawerBody();
-        }
-
-        function saveAndReload() {
-            // Read toggle states from DOM
-            const toggles = document.querySelectorAll('[data-section-id]');
-            toggles.forEach(cb => {
-                const id = cb.dataset.sectionId;
-                const ss = settings.sections.find(s => s.id === id);
-                if (ss) ss.enabled = cb.checked;
-                else settings.sections.push({ id, enabled: cb.checked });
-            });
-
-            // Read request notes
-            const notesEl = document.getElementById('requestNotes');
-            if (notesEl) settings.requestNotes = notesEl.value;
-
-            saveSettings(settings);
-            closeDrawer();
-            renderRequestNotesBanner();
-            loadNewsletter();
-        }
-
-        // ─── Fetch Helpers ─────────────────────────────────────────
-        async function fetchReddit(subreddit, limit = 6) {
-            try {
-                const res = await fetch(`https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit + 5}&raw_json=1`, {
-                    headers: { 'Accept': 'application/json' }
-                });
-                if (!res.ok) throw new Error(`Reddit returned ${res.status}`);
-                const data = await res.json();
-                return data.data.children
-                    .filter(c => !c.data.stickied)
-                    .slice(0, limit)
-                    .map(c => ({
-                        title: c.data.title,
-                        summary: c.data.selftext
-                            ? c.data.selftext.substring(0, 160) + (c.data.selftext.length > 160 ? '...' : '')
-                            : '',
-                        url: c.data.url.startsWith('/r/')
-                            ? `https://www.reddit.com${c.data.url}`
-                            : c.data.url,
-                        score: c.data.score,
-                        source: `r/${subreddit}`,
-                        comments: c.data.num_comments,
-                    }));
-            } catch (err) {
-                console.warn(`Failed to fetch r/${subreddit}:`, err);
-                return null;
-            }
-        }
-
-        async function fetchHackerNews(limit = 8) {
-            try {
-                const res = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
-                if (!res.ok) throw new Error(`HN returned ${res.status}`);
-                const ids = await res.json();
-                const topIds = ids.slice(0, limit);
-                const stories = await Promise.all(
-                    topIds.map(id =>
-                        fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json())
-                    )
-                );
-                return stories.map(s => ({
-                    title: s.title,
-                    summary: '',
-                    url: s.url || `https://news.ycombinator.com/item?id=${s.id}`,
-                    score: s.score,
-                    source: 'Hacker News',
-                    comments: s.descendants || 0,
-                }));
-            } catch (err) {
-                console.warn('Failed to fetch HN:', err);
-                return null;
-            }
-        }
-
-        // ─── Weather (using free wttr.in) ──────────────────────────
-        async function fetchWeather() {
-            try {
-                const res = await fetch('https://wttr.in/?format=j1', { headers: { 'Accept': 'application/json' } });
-                if (!res.ok) throw new Error(`Weather returned ${res.status}`);
-                const data = await res.json();
-                const current = data.current_condition[0];
-                const area = data.nearest_area[0];
-                return {
-                    temp: current.temp_F,
-                    feels: current.FeelsLikeF,
-                    desc: current.weatherDesc[0].value,
-                    humidity: current.humidity,
-                    city: area.areaName[0].value,
-                    region: area.region[0].value,
-                    code: parseInt(current.weatherCode),
-                };
-            } catch (err) {
-                console.warn('Failed to fetch weather:', err);
-                return null;
-            }
-        }
-
-        function getWeatherEmoji(code) {
-            if (code === 113) return '\u2600\uFE0F';
-            if (code === 116) return '\u26C5';
-            if ([119, 122].includes(code)) return '\u2601\uFE0F';
-            if ([143, 248, 260].includes(code)) return '\u{1F32B}\uFE0F';
-            if ([176, 263, 266, 293, 296, 299, 302, 305, 308, 311, 314, 353, 356, 359].includes(code)) return '\u{1F327}\uFE0F';
-            if ([179, 182, 185, 227, 230, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377, 392, 395].includes(code)) return '\u{1F328}\uFE0F';
-            if ([200, 386, 389].includes(code)) return '\u26C8\uFE0F';
-            return '\u{1F324}\uFE0F';
-        }
-
-        // ─── Render Functions ──────────────────────────────────────
-        function renderWeather(weather) {
-            if (!weather) {
-                document.getElementById('weatherSection').innerHTML = '';
-                return;
-            }
-            document.getElementById('weatherSection').innerHTML = `
-                <div class="weather-strip">
-                    <div class="weather-icon">${getWeatherEmoji(weather.code)}</div>
-                    <div class="weather-info">
-                        <div class="weather-temp">${weather.temp}\u00B0F (feels ${weather.feels}\u00B0F)</div>
-                        <div class="weather-desc">${weather.desc} \u2022 ${weather.city}, ${weather.region} \u2022 ${weather.humidity}% humidity</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderSection(section, stories) {
-            if (!stories || stories.length === 0) return '';
-
-            const tags = ['hot', 'trending', 'new'];
-            const storiesHtml = stories.map((story, i) => {
-                const tag = i === 0 ? `<span class="story-tag tag-${tags[Math.floor(Math.random() * tags.length)]}">${tags[Math.floor(Math.random() * tags.length)]}</span>` : '';
-                const summaryHtml = story.summary ? `<div class="story-summary">${escapeHtml(story.summary)}</div>` : '';
-                return `
-                    <div class="story">
-                        <div class="story-headline">
-                            <a href="${escapeHtml(story.url)}" target="_blank" rel="noopener">${escapeHtml(story.title)}</a>
-                        </div>
-                        ${summaryHtml}
-                        <div class="story-meta">
-                            ${tag}
-                            <span>${story.source}</span>
-                            ${story.comments ? `<span>${story.comments} comments</span>` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            return `
-                <div class="section ${section.theme}">
-                    <div class="section-header">
-                        <div class="section-icon">${section.icon}</div>
-                        <div class="section-title">${section.title}</div>
-                    </div>
-                    ${storiesHtml}
-                </div>
-            `;
-        }
-
-        function renderQuote() {
-            const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-            return `
-                <div class="quote-card">
-                    <div class="quote-text">\u201C${escapeHtml(quote.text)}\u201D</div>
-                    <div class="quote-author">\u2014 ${escapeHtml(quote.author)}</div>
-                </div>
-            `;
-        }
-
-        function renderOnThisDay() {
-            const now = new Date();
-            const key = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-            const fact = ON_THIS_DAY[key];
-            if (!fact) return '';
-            return `
-                <div class="on-this-day">
-                    <h3>\u{1F4C5} On This Day</h3>
-                    <p>${escapeHtml(fact)}</p>
-                </div>
-            `;
-        }
-
-        function renderFooter() {
-            return `
-                <div class="footer">
-                    <p>Your Morning Rundown &bull; Brewed fresh at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
-                    <p style="margin-top:4px"><a href="index.html">Open Packing List</a></p>
-                </div>
-            `;
-        }
-
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
-        }
-
-        // ─── Main Load ─────────────────────────────────────────────
-        async function loadNewsletter() {
-            const contentEl = document.getElementById('newsletterContent');
-            const activeSections = getActiveSections();
-            const limit = settings.articlesPerSection;
-
-            // Show loading skeleton for active sections
-            contentEl.innerHTML = activeSections.map(s => `
-                <div class="section ${s.theme}">
-                    <div class="section-header">
-                        <div class="section-icon">${s.icon}</div>
-                        <div class="section-title">${s.title}</div>
-                    </div>
-                    <div style="padding: 16px 20px;">
-                        <div class="skeleton skeleton-line"></div>
-                        <div class="skeleton skeleton-line medium"></div>
-                        <div class="skeleton skeleton-line short"></div>
-                    </div>
-                </div>
-            `).join('');
-
-            // Determine if we need HN stories
-            const needHN = activeSections.some(s => s.hnTag);
-            const hnLimit = needHN ? Math.max(8, limit) : 0;
-
-            // Fetch all data in parallel
-            const promises = [
-                fetchWeather(),
-                needHN ? fetchHackerNews(hnLimit) : Promise.resolve(null),
-                ...activeSections.map(s => fetchReddit(s.subreddit, limit)),
-            ];
-
-            const [weather, hnStories, ...redditResults] = await Promise.all(promises);
-
-            // Render weather
+        // ─── Main load ───────────────────────────────────────────
+        async function loadNewsletter(){
+            const el=document.getElementById('newsletterContent'); const secs=getActiveSections(); const limit=prefs.articlesPerSection;
+            el.innerHTML=secs.map(s=>'<div class="section '+s.theme+'"><div class="section-header"><div class="section-icon">'+s.icon+'</div><div class="section-title">'+s.title+'</div><div class="collapse-chevron">\u25BC</div></div><div style="padding:16px 20px"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line medium"></div><div class="skeleton skeleton-line short"></div></div></div>').join('');
+            const needHN=secs.some(s=>s.hnMix); const hnLimit=needHN?Math.max(8,limit):0;
+            const [weather,hnStories,...results]=await Promise.all([fetchWeather(),needHN?fetchHackerNews(hnLimit):Promise.resolve([]),...secs.map(s=>fetchMultiReddit(s.subreddits,limit))]);
             renderWeather(weather);
-
-            // Build sections
-            let html = '';
-
-            for (let i = 0; i < activeSections.length; i++) {
-                const section = activeSections[i];
-                let stories = redditResults[i] || [];
-
-                // Mix in HN stories for headlines and tech
-                if (section.id === 'headlines' && hnStories) {
-                    const hnSlice = hnStories.slice(0, Math.ceil(limit / 2));
-                    const redditSlice = stories.slice(0, Math.floor(limit / 2));
-                    stories = [...hnSlice, ...redditSlice];
-                } else if (section.id === 'tech' && hnStories) {
-                    const hnSlice = hnStories.slice(Math.ceil(limit / 2), Math.ceil(limit / 2) + Math.floor(limit / 3));
-                    const redditSlice = stories.slice(0, limit - hnSlice.length);
-                    stories = [...hnSlice, ...redditSlice];
+            let html='';
+            for(let i=0;i<secs.length;i++){
+                const sec=secs[i]; let stories=results[i]||[]; const dopt=getSectionDisplayOption(sec.id);
+                if(sec.hnMix&&hnStories.length){
+                    const hn=sec.id==='headlines'?hnStories.slice(0,Math.ceil(limit/2)):hnStories.slice(Math.ceil(limit/2),Math.ceil(limit/2)+Math.floor(limit/3));
+                    stories=[...hn,...stories.slice(0,limit-hn.length)];
                 }
-
-                html += renderSection(section, stories.slice(0, limit));
+                html+=renderSection(sec,stories.slice(0,limit),dopt);
             }
-
-            // Quote
-            html += renderQuote();
-
-            // On This Day
-            html += renderOnThisDay();
-
-            // Footer
-            html += renderFooter();
-
-            contentEl.innerHTML = html;
+            html+=renderQuote()+renderOnThisDay()+renderFooter();
+            el.innerHTML=html;
         }
+        function refreshNewsletter(){ const b=document.querySelector('.refresh-btn'); b.classList.add('spinning'); setTimeout(()=>b.classList.remove('spinning'),600); loadNewsletter(); }
 
-        // ─── Refresh ───────────────────────────────────────────────
-        function refreshNewsletter() {
-            const btn = document.querySelector('.refresh-btn');
-            btn.classList.add('spinning');
-            setTimeout(() => btn.classList.remove('spinning'), 600);
-            loadNewsletter();
-        }
-
-        // ─── Service Worker ────────────────────────────────────────
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').catch(() => {});
-        }
-
-        // ─── Install Prompt (Android / Desktop) ───────────────────
-        let deferredPrompt = null;
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            showInstallBanner('android');
-        });
-
-        // ─── iOS Detection & Install Guide ────────────────────────
-        function isIOS() {
-            return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        }
-
-        function isStandalone() {
-            return window.navigator.standalone === true ||
-                   window.matchMedia('(display-mode: standalone)').matches;
-        }
-
-        function showInstallBanner(platform) {
-            if (localStorage.getItem('installDismissed')) return;
-            const banner = document.getElementById('installBanner');
-            const desc = document.getElementById('installDesc');
-            const btn = document.getElementById('installBtn');
-
-            if (platform === 'ios') {
-                desc.innerHTML = 'Tap <strong>Share</strong> \u27A1 <strong>Add to Home Screen</strong>';
-                btn.textContent = 'Got it';
-            }
-
-            setTimeout(() => banner.classList.add('visible'), 1500);
-        }
-
-        function handleInstall() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then(() => {
-                    deferredPrompt = null;
-                    document.getElementById('installBanner').classList.remove('visible');
-                });
-            } else {
-                dismissInstall();
-            }
-        }
-
-        function dismissInstall() {
-            document.getElementById('installBanner').classList.remove('visible');
-            localStorage.setItem('installDismissed', 'true');
-        }
-
-        // Show iOS banner if not already installed
-        if (isIOS() && !isStandalone()) {
-            showInstallBanner('ios');
-        }
+        // ─── Service worker & install ────────────────────────────
+        if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+        let deferredPrompt=null;
+        window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;showInstallBanner('android');});
+        function isIOS(){return/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+        function isStandalone(){return window.navigator.standalone===true||window.matchMedia('(display-mode:standalone)').matches;}
+        function showInstallBanner(p){if(localStorage.getItem('installDismissed'))return;if(p==='ios'){document.getElementById('installDesc').innerHTML='Tap <strong>Share</strong> \u27A1 <strong>Add to Home Screen</strong>';document.getElementById('installBtn').textContent='Got it';}setTimeout(()=>document.getElementById('installBanner').classList.add('visible'),1500);}
+        function handleInstall(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;document.getElementById('installBanner').classList.remove('visible');});}else{dismissInstall();}}
+        function dismissInstall(){document.getElementById('installBanner').classList.remove('visible');localStorage.setItem('installDismissed','true');}
+        if(isIOS()&&!isStandalone()) showInstallBanner('ios');
     </script>
 </body>
 </html>
