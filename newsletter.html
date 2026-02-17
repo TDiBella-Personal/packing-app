@@ -18,7 +18,7 @@
         body.dark-mode{background:#1a1a2e;color:#e0e0e0}
         @media all and (display-mode:standalone){
             .banner{padding-top:calc(env(safe-area-inset-top,20px)+16px)}
-            .dark-mode-toggle,.refresh-btn,.settings-btn{top:calc(env(safe-area-inset-top,16px)+4px)}
+            .dark-mode-toggle,.refresh-btn,.settings-btn,.collapse-all-btn{top:calc(env(safe-area-inset-top,16px)+4px)}
         }
         .banner{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:32px 20px 24px;text-align:center;color:#fff}
         .banner h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px;text-shadow:1px 1px 3px rgba(0,0,0,.15)}
@@ -130,6 +130,7 @@
         .dark-mode-toggle{position:fixed;top:16px;right:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
         .settings-btn{position:fixed;top:16px;right:62px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:transform .3s}
         .settings-btn:active{transform:rotate(60deg)}
+        .collapse-all-btn{position:fixed;top:16px;right:108px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:16px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
         .refresh-btn{position:fixed;top:16px;left:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:transform .5s}
         .refresh-btn.spinning{transform:rotate(360deg)}
 
@@ -208,6 +209,7 @@
 <body>
     <button class="dark-mode-toggle" onclick="toggleDarkMode()">&#x1F319;</button>
     <button class="settings-btn" onclick="openDrawer()" title="Settings">&#x2699;&#xFE0F;</button>
+    <button class="collapse-all-btn" onclick="toggleAllSections()" title="Expand/Collapse All" id="collapseAllBtn">&#x2195;&#xFE0F;</button>
     <button class="refresh-btn" onclick="refreshNewsletter()" title="Refresh">&#x1F504;</button>
     <a class="nav-link" href="index.html" title="Packing List">&#x1F9F3;</a>
 
@@ -555,6 +557,7 @@
             return '<div class="section '+section.theme+'"><div class="section-header" onclick="toggleSection(\''+sid+'\')"><div class="section-icon">'+section.icon+'</div><div class="section-title">'+section.title+'</div><div class="collapse-chevron">\u25BC</div></div><div class="section-body" id="'+sid+'">'+sh+'</div></div>';
         }
         function toggleSection(id){ const b=document.getElementById(id); b.classList.toggle('collapsed'); b.previousElementSibling.classList.toggle('collapsed'); }
+        function toggleAllSections(){ const bodies=document.querySelectorAll('.section-body'); const anyExpanded=[...bodies].some(b=>!b.classList.contains('collapsed')); bodies.forEach(b=>{if(anyExpanded){b.classList.add('collapsed');b.previousElementSibling.classList.add('collapsed');}else{b.classList.remove('collapsed');b.previousElementSibling.classList.remove('collapsed');}}); }
         function renderQuote(){ const q=QUOTES[Math.floor(Math.random()*QUOTES.length)]; return '<div class="quote-card"><div class="quote-text">\u201C'+escapeHtml(q.text)+'\u201D</div><div class="quote-author">\u2014 '+escapeHtml(q.author)+'</div></div>'; }
         function renderOnThisDay(){ const n=new Date(); const k=String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); const f=ON_THIS_DAY[k]; if(!f)return''; return '<div class="on-this-day"><h3>\u{1F4C5} On This Day</h3><p>'+escapeHtml(f)+'</p></div>'; }
         function renderFooter(){ return '<div class="footer"><p>Your Morning Rundown &bull; Brewed fresh at '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</p><p style="margin-top:4px"><a href="index.html">Open Packing List</a></p></div>'; }
