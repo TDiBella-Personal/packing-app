@@ -191,6 +191,17 @@
         .prefs-url-input{width:100%;padding:10px 14px;border-radius:10px;border:1px solid #ddd;font-size:13px;background:#fff;color:#333;margin-top:8px}
         .dark-mode .prefs-url-input{background:#262640;border-color:#444466;color:#e0e0e0}
         .prefs-hint{font-size:11px;color:#aaa;margin-top:6px;line-height:1.4}
+
+        /* Context Window / Requests */
+        .requests-textarea{width:100%;min-height:120px;padding:12px 14px;border-radius:10px;border:1px solid #ddd;font-size:13px;font-family:inherit;background:#fff;color:#333;resize:vertical;line-height:1.6}
+        .dark-mode .requests-textarea{background:#262640;border-color:#444466;color:#e0e0e0}
+        .requests-textarea::placeholder{color:#bbb}
+        .dark-mode .requests-textarea::placeholder{color:#666}
+        .requests-active{background:#f0fdf4;border-radius:10px;padding:12px 14px;margin-top:10px;font-size:12px;line-height:1.6;color:#555}
+        .dark-mode .requests-active{background:#1e3a28;color:#aaa}
+        .requests-active-title{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#27ae60;margin-bottom:6px}
+        .requests-keyword{display:inline-block;padding:2px 8px;border-radius:4px;background:#e8f5e9;color:#2e7d32;font-size:11px;font-weight:600;margin:2px 3px 2px 0}
+        .dark-mode .requests-keyword{background:#1e3a28;color:#4caf50}
     </style>
 </head>
 <body>
@@ -340,7 +351,7 @@
         }
 
         // ─── Init ────────────────────────────────────────────────
-        document.addEventListener('DOMContentLoaded', async()=>{ initDarkMode(); setDateAndGreeting(); await loadPreferences(); loadNewsletter(); });
+        document.addEventListener('DOMContentLoaded', async()=>{ initDarkMode(); setDateAndGreeting(); await loadPreferences(); const savedReqs=localStorage.getItem('rundownRequests'); if(savedReqs!==null) prefs.requests=savedReqs; loadNewsletter(); });
 
         function initDarkMode(){ if(localStorage.getItem('newsletterDarkMode')==='true'){document.body.classList.add('dark-mode');document.querySelector('.dark-mode-toggle').textContent='\u2600\uFE0F';} }
         function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); const d=document.body.classList.contains('dark-mode'); localStorage.setItem('newsletterDarkMode',d); document.querySelector('.dark-mode-toggle').textContent=d?'\u2600\uFE0F':'\u{1F319}'; }
@@ -362,8 +373,12 @@
             let t=prefs.sections.map(sec=>{const key=sec.title.toLowerCase();const reg=SECTION_REGISTRY[key];const icon=reg?reg.icon:'\u2B50';
                 return '<div class="toggle-row"><div class="toggle-label"><span class="toggle-emoji">'+icon+'</span><span>'+sec.title+'</span></div><label class="switch"><input type="checkbox" data-section-title="'+sec.title+'" '+(sec.enabled?'checked':'')+'><span class="slider"></span></label></div>';}).join('');
             let chips=prefs.customTopics.map((s,i)=>'<span class="custom-topic-chip">r/'+escapeHtml(s)+'<button class="remove-topic" onclick="removeCustomTopic('+i+')">&times;</button></span>').join('');
+            const savedReqs=localStorage.getItem('rundownRequests')||prefs.requests||'';
+            const activeKeywords=parseRequestKeywords(savedReqs);
+            const keywordsHtml=activeKeywords.length?'<div class="requests-active"><div class="requests-active-title">Active Filters</div>'+activeKeywords.map(k=>'<span class="requests-keyword">'+escapeHtml(k.label)+'</span>').join('')+'</div>':'';
             body.innerHTML='<div class="drawer-section"><div class="drawer-section-title">Articles Per Section</div><div class="toggle-row"><div class="toggle-label">Number of articles</div><div class="stepper"><button class="stepper-btn" onclick="adjustCount(-1)">&minus;</button><span class="stepper-val" id="articleCount">'+prefs.articlesPerSection+'</span><button class="stepper-btn" onclick="adjustCount(1)">+</button></div></div></div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Sections</div>'+t+'</div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Context Window</div><p style="font-size:13px;color:#888;margin-bottom:8px">Tell the newsletter what you want in plain English. It will adjust your feed based on keywords and intent.</p><textarea class="requests-textarea" id="requestsInput" placeholder="e.g. More NBA content\nFocus on AI breakthroughs\nLess politics in Top Stories\nShow cooking recipes on weekends">'+escapeHtml(savedReqs)+'</textarea>'+keywordsHtml+'</div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Custom Topics</div><p style="font-size:13px;color:#888;margin-bottom:8px">Add any subreddit as a custom section.</p><div class="add-topic-row"><input type="text" id="customSubreddit" placeholder="e.g. space, nba, vinyl" /><button class="add-topic-btn" onclick="addCustomTopic()">Add</button></div><div class="custom-topics-list">'+chips+'</div></div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Preferences File</div><p class="prefs-hint">Load settings from an external URL (e.g. GitHub Gist raw link). Leave blank for local preferences.md.</p><input class="prefs-url-input" id="prefsUrlInput" type="url" placeholder="https://gist.githubusercontent.com/..." value="'+escapeHtml(prefs.prefsUrl||'')+'" /></div>';
         }
@@ -373,7 +388,106 @@
         function saveAndReload(){
             document.querySelectorAll('[data-section-title]').forEach(cb=>{const t=cb.dataset.sectionTitle;const s=prefs.sections.find(x=>x.title===t);if(s)s.enabled=cb.checked;});
             const u=document.getElementById('prefsUrlInput'); if(u){const v=u.value.trim();if(v)localStorage.setItem('rundownPrefsUrl',v);else localStorage.removeItem('rundownPrefsUrl');}
+            const reqEl=document.getElementById('requestsInput'); if(reqEl){const rv=reqEl.value.trim();localStorage.setItem('rundownRequests',rv);prefs.requests=rv;}
             closeDrawer(); loadNewsletter();
+        }
+
+        // ─── NLP Request Parser ───────────────────────────────────
+        function parseRequestKeywords(text){
+            if(!text||!text.trim()) return [];
+            const rules=[];
+            const lines=text.split('\n').map(l=>l.replace(/^[-*]\s*/,'').trim()).filter(l=>l);
+            // Known topic keywords → subreddit mappings
+            const topicMap={
+                'nba':['nba'],'basketball':['nba'],'football':['nfl'],'nfl':['nfl'],'soccer':['soccer'],
+                'baseball':['baseball'],'mlb':['baseball'],'hockey':['hockey'],'nhl':['hockey'],
+                'ai':['artificial','MachineLearning','ClaudeAI','ChatGPT'],'machine learning':['MachineLearning'],
+                'crypto':['cryptocurrency'],'bitcoin':['bitcoin'],'stocks':['stocks','wallstreetbets'],
+                'cooking':['cooking','recipes'],'recipes':['recipes','cooking'],
+                'fitness':['fitness'],'workout':['fitness','bodyweightfitness'],
+                'programming':['programming','learnprogramming'],'coding':['programming'],
+                'movies':['movies'],'tv':['television'],'anime':['anime'],
+                'music':['Music','listentothis'],'gaming':['gaming'],'space':['space'],
+                'science':['science'],'physics':['physics'],'math':['math'],
+                'politics':['politics'],'world news':['worldnews'],'news':['news'],
+            };
+            for(const line of lines){
+                const lower=line.toLowerCase();
+                // "More X" → boost: add extra subreddits for that topic
+                const moreMatch=lower.match(/^(?:more|extra|add|include|focus on|i (?:want|like|love))\s+(.+)/);
+                if(moreMatch){
+                    const topic=moreMatch[1].replace(/\s*content$/,'').replace(/\s*articles$/,'').replace(/\s*stories$/,'').replace(/\s*stuff$/,'').trim();
+                    const subs=topicMap[topic];
+                    if(subs) rules.push({type:'boost',topic,subreddits:subs,label:'More '+topic});
+                    else rules.push({type:'boost',topic,subreddits:[topic.replace(/\s+/g,'')],label:'More '+topic});
+                    continue;
+                }
+                // "Less X" / "No X" → demote: filter out content matching keywords
+                const lessMatch=lower.match(/^(?:less|fewer|no|remove|hide|skip|avoid|don'?t show|not interested in)\s+(.+)/);
+                if(lessMatch){
+                    let target=lessMatch[1].replace(/\s*content$/,'').replace(/\s*articles$/,'').replace(/\s*stories$/,'').replace(/\s*stuff$/,'').trim();
+                    // Handle "in Section" suffix
+                    const inSection=target.match(/(.+?)\s+in\s+(.+)$/);
+                    if(inSection) rules.push({type:'demote',keywords:inSection[1].split(/\s+/),section:inSection[2].trim(),label:'Less '+inSection[1]+' in '+inSection[2]});
+                    else rules.push({type:'demote',keywords:target.split(/\s+/),section:null,label:'Less '+target});
+                    continue;
+                }
+                // "Show X on weekends/weekdays" → conditional
+                const condMatch=lower.match(/^show\s+(.+?)\s+on\s+(weekends?|weekdays?|(?:mon|tues?|wed(?:nes)?|thu(?:rs)?|fri|sat(?:ur)?|sun)(?:days?)?)/);
+                if(condMatch){
+                    rules.push({type:'conditional',topic:condMatch[1],day:condMatch[2],label:line});
+                    continue;
+                }
+                // Fallback: treat whole line as a boost keyword
+                for(const [key,subs] of Object.entries(topicMap)){
+                    if(lower.includes(key)){rules.push({type:'boost',topic:key,subreddits:subs,label:line});break;}
+                }
+            }
+            return rules;
+        }
+
+        function applyRequestFilters(sectionId, sectionTitle, stories){
+            const reqText=localStorage.getItem('rundownRequests')||prefs.requests||'';
+            const rules=parseRequestKeywords(reqText);
+            if(!rules.length) return stories;
+            let filtered=[...stories];
+            for(const rule of rules){
+                if(rule.type==='demote'){
+                    // If scoped to a section, only apply to that section
+                    if(rule.section){
+                        const scopeMatch=sectionTitle.toLowerCase().includes(rule.section.toLowerCase())||sectionId.toLowerCase().includes(rule.section.toLowerCase());
+                        if(!scopeMatch) continue;
+                    }
+                    // Filter out stories whose title contains demoted keywords
+                    filtered=filtered.filter(s=>{
+                        const title=s.title.toLowerCase();
+                        return !rule.keywords.some(kw=>title.includes(kw));
+                    });
+                }
+            }
+            return filtered;
+        }
+
+        function getBoostSubreddits(){
+            const reqText=localStorage.getItem('rundownRequests')||prefs.requests||'';
+            const rules=parseRequestKeywords(reqText);
+            const boosts=[];
+            const now=new Date(); const day=now.getDay(); const isWeekend=day===0||day===6;
+            for(const rule of rules){
+                if(rule.type==='boost'&&rule.subreddits) boosts.push(...rule.subreddits);
+                if(rule.type==='conditional'){
+                    const d=rule.day.toLowerCase();
+                    const active=(d.startsWith('weekend')&&isWeekend)||(d.startsWith('weekday')&&!isWeekend);
+                    if(active){
+                        const subs=Object.entries({
+                            'cooking':['cooking','recipes'],'recipes':['recipes','cooking'],
+                            'nba':['nba'],'gaming':['gaming'],'movies':['movies']
+                        });
+                        for(const [key,val] of subs){ if(rule.topic.includes(key)) boosts.push(...val); }
+                    }
+                }
+            }
+            return [...new Set(boosts)];
         }
 
         // ─── Fetch helpers ───────────────────────────────────────
@@ -438,9 +552,15 @@
         // ─── Main load ───────────────────────────────────────────
         async function loadNewsletter(){
             const el=document.getElementById('newsletterContent'); const secs=getActiveSections(); const limit=prefs.articlesPerSection;
+            // Add boost subreddits from requests as extra sections
+            const boosts=getBoostSubreddits();
+            const existingSubs=new Set(secs.flatMap(s=>s.subreddits.map(r=>r.toLowerCase())));
+            const newBoosts=boosts.filter(b=>!existingSubs.has(b.toLowerCase()));
+            for(const sub of newBoosts) secs.push({id:'boost_'+sub,icon:'\u{1F525}',title:'r/'+sub,theme:'section-custom',subreddits:[sub],hnMix:false});
+
             el.innerHTML=secs.map(s=>'<div class="section '+s.theme+'"><div class="section-header"><div class="section-icon">'+s.icon+'</div><div class="section-title">'+s.title+'</div><div class="collapse-chevron">\u25BC</div></div><div style="padding:16px 20px"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line medium"></div><div class="skeleton skeleton-line short"></div></div></div>').join('');
             const needHN=secs.some(s=>s.hnMix); const hnLimit=needHN?Math.max(8,limit):0;
-            const [weather,hnStories,...results]=await Promise.all([fetchWeather(),needHN?fetchHackerNews(hnLimit):Promise.resolve([]),...secs.map(s=>fetchMultiReddit(s.subreddits,limit))]);
+            const [weather,hnStories,...results]=await Promise.all([fetchWeather(),needHN?fetchHackerNews(hnLimit):Promise.resolve([]),...secs.map(s=>fetchMultiReddit(s.subreddits,limit+4))]);
             renderWeather(weather);
             let html='';
             for(let i=0;i<secs.length;i++){
@@ -449,6 +569,8 @@
                     const hn=sec.id==='headlines'?hnStories.slice(0,Math.ceil(limit/2)):hnStories.slice(Math.ceil(limit/2),Math.ceil(limit/2)+Math.floor(limit/3));
                     stories=[...hn,...stories.slice(0,limit-hn.length)];
                 }
+                // Apply NLP request filters (demote/hide matching stories)
+                stories=applyRequestFilters(sec.id,sec.title,stories);
                 html+=renderSection(sec,stories.slice(0,limit),dopt);
             }
             html+=renderQuote()+renderOnThisDay()+renderFooter();
