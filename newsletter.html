@@ -547,7 +547,8 @@
             const mEl=document.getElementById('mobileWeather');
             if(!w){mEl.innerHTML='';return;}
             const e=getWeatherEmoji(w.code);
-            mEl.innerHTML='<div class="weather-strip"><div class="weather-icon">'+e+'</div><div class="weather-info"><div class="weather-temp">'+w.temp+'\u00B0F (feels '+w.feels+'\u00B0F)</div><div class="weather-desc">'+w.desc+' \u2022 '+w.city+', '+w.region+' \u2022 '+w.humidity+'% humidity</div></div></div>';
+            const locLabel=prefs&&prefs.location?escapeHtml(prefs.location):(w.city+', '+w.region);
+            mEl.innerHTML='<div class="weather-strip"><div class="weather-icon">'+e+'</div><div class="weather-info"><div class="weather-temp">'+w.temp+'\u00B0F (feels '+w.feels+'\u00B0F)</div><div class="weather-desc">'+w.desc+' \u2022 '+locLabel+' \u2022 '+w.humidity+'% humidity</div></div></div>';
         }
         function renderSection(section,stories,displayOpt){
             if(!stories||stories.length===0) return '';
