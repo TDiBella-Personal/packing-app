@@ -29,7 +29,7 @@
         .page-layout{max-width:900px;margin:0 auto;padding:0 16px 40px;display:flex;gap:20px;align-items:flex-start}
         .sidebar{width:200px;flex-shrink:0;position:sticky;top:20px;display:none}
         .feed{flex:1;min-width:0}
-        @media(min-width:768px){.sidebar{display:block}.mobile-weather{display:none!important}}
+        @media(min-width:768px){}
         @media(max-width:767px){.sidebar{display:none}.page-layout{padding:0 10px 30px}}
 
         /* Weather Widget (sidebar) */
@@ -82,6 +82,7 @@
         .section-world .section-icon{background:#e0f2f1}.section-world .section-title{color:#00695c}
         .section-ai .section-icon{background:#e8eaf6}.section-ai .section-title{color:#5c6bc0}
         .section-custom .section-icon{background:#ede7f6}.section-custom .section-title{color:#4527a0}
+        .section-interesting .story-headline{font-weight:400}
 
         .dark-mode .section-headlines .section-icon{background:#2a2d4a}
         .dark-mode .section-tech .section-icon{background:#1e3a28}
@@ -353,7 +354,7 @@
         // ─── Init ────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async()=>{ initDarkMode(); setDateAndGreeting(); await loadPreferences(); const savedReqs=localStorage.getItem('rundownRequests'); if(savedReqs!==null) prefs.requests=savedReqs; loadNewsletter(); });
 
-        function initDarkMode(){ if(localStorage.getItem('newsletterDarkMode')==='true'){document.body.classList.add('dark-mode');document.querySelector('.dark-mode-toggle').textContent='\u2600\uFE0F';} }
+        function initDarkMode(){ const saved=localStorage.getItem('newsletterDarkMode'); const dark=saved!==null?saved==='true':(window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches); if(dark){document.body.classList.add('dark-mode');document.querySelector('.dark-mode-toggle').textContent='\u2600\uFE0F';} }
         function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); const d=document.body.classList.contains('dark-mode'); localStorage.setItem('newsletterDarkMode',d); document.querySelector('.dark-mode-toggle').textContent=d?'\u2600\uFE0F':'\u{1F319}'; }
 
         function setDateAndGreeting(){
@@ -491,10 +492,17 @@
         }
 
         // ─── Fetch helpers ───────────────────────────────────────
+        function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+        function getYesterdayCutoff(){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()-1,0,1,0).getTime()/1000; }
         async function fetchReddit(subreddit, limit=6){
-            try{ const r=await fetch('https://www.reddit.com/r/'+subreddit+'/hot.json?limit='+(limit+5)+'&raw_json=1',{headers:{'Accept':'application/json'}});
+            try{ const fetchLimit=Math.min(limit*5,50);
+                const r=await fetch('https://www.reddit.com/r/'+subreddit+'/hot.json?limit='+fetchLimit+'&raw_json=1',{headers:{'Accept':'application/json'}});
                 if(!r.ok) throw new Error('Reddit '+r.status); const d=await r.json();
-                return d.data.children.filter(c=>!c.data.stickied).slice(0,limit).map(c=>({title:c.data.title,summary:c.data.selftext?c.data.selftext.substring(0,160)+(c.data.selftext.length>160?'...':''):'',url:c.data.url.startsWith('/r/')?'https://www.reddit.com'+c.data.url:c.data.url,score:c.data.score,source:'r/'+subreddit,comments:c.data.num_comments}));
+                const cutoff=getYesterdayCutoff();
+                const all=d.data.children.filter(c=>!c.data.stickied);
+                const recent=all.filter(c=>c.data.created_utc>=cutoff);
+                const source=recent.length>=limit?recent:all;
+                return shuffle(source.map(c=>({title:c.data.title,summary:c.data.selftext?c.data.selftext.substring(0,160)+(c.data.selftext.length>160?'...':''):'',url:c.data.url.startsWith('/r/')?'https://www.reddit.com'+c.data.url:c.data.url,score:c.data.score,source:'r/'+subreddit,comments:c.data.num_comments}))).slice(0,limit);
             }catch(e){console.warn('Failed r/'+subreddit,e);return [];}
         }
         async function fetchMultiReddit(subs, limit=6){
@@ -504,10 +512,14 @@
             const merged=results.flat(); merged.sort((a,b)=>b.score-a.score); return merged.slice(0,limit);
         }
         async function fetchHackerNews(limit=8){
-            try{ const r=await fetch('https://hacker-news.firebaseio.com/v0/topstories.json'); if(!r.ok) throw new Error('HN '+r.status);
-                const ids=await r.json(); const top=ids.slice(0,limit);
+            try{ const fetchLimit=Math.min(limit*4,40);
+                const r=await fetch('https://hacker-news.firebaseio.com/v0/topstories.json'); if(!r.ok) throw new Error('HN '+r.status);
+                const ids=await r.json(); const top=ids.slice(0,fetchLimit);
                 const stories=await Promise.all(top.map(id=>fetch('https://hacker-news.firebaseio.com/v0/item/'+id+'.json').then(r=>r.json())));
-                return stories.map(s=>({title:s.title,summary:'',url:s.url||'https://news.ycombinator.com/item?id='+s.id,score:s.score,source:'Hacker News',comments:s.descendants||0}));
+                const cutoff=getYesterdayCutoff();
+                const recent=stories.filter(s=>s&&s.time>=cutoff);
+                const source=recent.length>=limit?recent:stories.filter(s=>s);
+                return shuffle(source.map(s=>({title:s.title,summary:'',url:s.url||'https://news.ycombinator.com/item?id='+s.id,score:s.score,source:'Hacker News',comments:s.descendants||0}))).slice(0,limit);
             }catch(e){console.warn('Failed HN',e);return [];}
         }
         async function fetchWeather(){
@@ -525,10 +537,9 @@
 
         // ─── Render ──────────────────────────────────────────────
         function renderWeather(w){
-            const wEl=document.getElementById('weatherWidget'),mEl=document.getElementById('mobileWeather');
-            if(!w){wEl.innerHTML='';mEl.innerHTML='';return;}
+            const mEl=document.getElementById('mobileWeather');
+            if(!w){mEl.innerHTML='';return;}
             const e=getWeatherEmoji(w.code);
-            wEl.innerHTML='<div class="weather-widget"><div class="ww-icon">'+e+'</div><div class="ww-temp">'+w.temp+'\u00B0F</div><div class="ww-feels">Feels like '+w.feels+'\u00B0F</div><div class="ww-desc">'+w.desc+'</div><div class="ww-location">'+w.city+', '+w.region+'</div><div class="ww-humidity">'+w.humidity+'% humidity</div></div>';
             mEl.innerHTML='<div class="weather-strip"><div class="weather-icon">'+e+'</div><div class="weather-info"><div class="weather-temp">'+w.temp+'\u00B0F (feels '+w.feels+'\u00B0F)</div><div class="weather-desc">'+w.desc+' \u2022 '+w.city+', '+w.region+' \u2022 '+w.humidity+'% humidity</div></div></div>';
         }
         function renderSection(section,stories,displayOpt){
