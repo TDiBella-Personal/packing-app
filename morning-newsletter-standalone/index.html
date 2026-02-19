@@ -245,27 +245,22 @@
             'work & productivity':  { id: 'work', icon: '\u{1F4BC}', theme: 'section-work', subreddits: ['productivity'], hnMix: false },
             'interesting finds':    { id: 'interesting', icon: '\u{1F9E0}', theme: 'section-interesting', subreddits: ['todayilearned'], hnMix: false },
         };
-        const QUOTES = [
-            { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
-            { text: "Innovation distinguishes between a leader and a follower.", author: "Steve Jobs" },
-            { text: "Stay hungry, stay foolish.", author: "Stewart Brand" },
-            { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
-            { text: "Done is better than perfect.", author: "Sherrod White" },
-            { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
-            { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
-            { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
-            { text: "What you do today can improve all your tomorrows.", author: "Ralph Marston" },
-            { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
-            { text: "Creativity is intelligence having fun.", author: "Albert Einstein" },
-            { text: "The only limit to our realization of tomorrow is our doubts of today.", author: "Franklin D. Roosevelt" },
-            { text: "Do what you can, with what you have, where you are.", author: "Theodore Roosevelt" },
-            { text: "Everything you've ever wanted is on the other side of fear.", author: "George Addair" },
-            { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
-            { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
-            { text: "Not all those who wander are lost.", author: "J.R.R. Tolkien" },
-            { text: "Life is what happens when you're busy making other plans.", author: "John Lennon" },
-            { text: "The only impossible journey is the one you never begin.", author: "Tony Robbins" },
-            { text: "Music expresses that which cannot be said and on which it is impossible to be silent.", author: "Victor Hugo" },
+        const PROMPTS = [
+            { title:"The Pre-Mortem", desc:"Stress-tests a decision by writing a fictional post-mortem from 18 months in the future. Catches blind spots that optimism hides.", prompt:"I'm about to make a decision and I want to stress-test it. I'll describe what I'm planning. Write a vivid, detailed post-mortem from 18 months in the future explaining exactly how and why this decision failed catastrophically. Be specific about the cascading failures, the warning signs I ignored, and what I wish I had done differently. Then give me three concrete actions I can take right now to prevent this future." },
+            { title:"The Reverse Expert", desc:"Instead of teaching you, AI asks increasingly precise questions that reveal exactly where your understanding breaks down. Socratic method on steroids.", prompt:"I'm going to explain a topic I think I understand well. Your role: act as a brilliant student who asks increasingly precise and probing questions. Never correct me or teach me \u2014 only ask questions. Start broad, then zoom into the edges of my knowledge. Your goal is to help me discover exactly where my understanding gets fuzzy or breaks down entirely. The topic I'll explain: [your topic]" },
+            { title:"Concept Collision", desc:"Smashes two unrelated fields together to generate genuinely novel ideas. Goes beyond brainstorming by forcing connections between domains that never interact.", prompt:"Pick two fields that have absolutely nothing to do with each other \u2014 the more unrelated, the better. Now create a genuinely viable and specific business concept, research project, or creative work that can only exist at their intersection. Include: the core idea, why it would work, who would care about it, and one specific detail that makes it feel real rather than hypothetical." },
+            { title:"Perspective Kaleidoscope", desc:"Refracts a single problem through five wildly different lenses to surface insights you'd never find from your own viewpoint. Each perspective uses its own domain's logic.", prompt:"I'll describe a challenge I'm facing. Reframe it from five radically different perspectives: (1) a stand-up comedian finding the absurdity, (2) a theoretical physicist identifying the underlying forces, (3) a 5-year-old asking 'but why?', (4) a 16th-century explorer encountering it for the first time, and (5) an alien anthropologist studying human behavior. Each should offer a genuinely different and actionable insight." },
+            { title:"First Principles Audit", desc:"Breaks down a daily routine or belief to its fundamental assumptions, then rebuilds it from scratch. Reveals which habits are intentional vs. inherited autopilot.", prompt:"Pick one thing I do every day \u2014 a routine, a habit, or a belief I hold. Deconstruct it to its most basic assumptions. Question every one: why this way? Why not the opposite? Then rebuild the practice from scratch as if designing it for the first time with no knowledge of how it's 'supposed' to be done. Show me what I might be missing." },
+            { title:"The Steelman Challenge", desc:"Forces genuine engagement with opposing viewpoints by constructing the strongest possible case for something you disagree with. More effective than typical debate.", prompt:"I'm going to share an opinion I hold strongly. Your job is to construct the absolute strongest, most compelling argument AGAINST my position \u2014 so persuasive that I genuinely reconsider. Don't use strawman tactics or weak objections. Find the real vulnerabilities in my thinking. My position: [insert your opinion here]" },
+            { title:"Inverted Advice", desc:"Instead of asking how to succeed, maps out what guaranteed failure looks like. By charting the minefield, the safe path becomes obvious.", prompt:"I'll describe a goal I'm pursuing. Don't tell me how to achieve it. Instead, give me the definitive guide to GUARANTEEING I fail at it. Be thorough and specific \u2014 what daily habits, mindset patterns, and strategic decisions would make failure absolutely certain? Make it darkly funny but genuinely insightful. Then flip each point into its opposite to reveal the actual playbook." },
+            { title:"The Adjacent Possible", desc:"Maps your existing skills and interests to find opportunities hiding just outside your peripheral vision. Discovers paths you're already 80% qualified for.", prompt:"I'll describe my skills, interests, experiences, and what energizes me. Your job: identify something I've probably never considered \u2014 a project, role, or pursuit sitting in my 'adjacent possible.' It should combine things I already know in a way I haven't thought of. Don't suggest the obvious. Find the unexpected intersection that would make me say 'why didn't I think of that?' Be specific: what it is, first steps, and why it fits me uniquely." },
+            { title:"Assumption Archaeology", desc:"Digs up the buried assumptions underlying any plan or system, then tests which ones are load-bearing and which are just inherited habits.", prompt:"I'll describe a system, workflow, or plan I've set up. Perform an archaeological dig on its assumptions. List every hidden assumption I'm making \u2014 the ones so embedded I probably don't recognize them as choices. Classify each: is it load-bearing (the whole thing collapses without it) or decorative (inherited from convention but not actually necessary)? For each decorative one, suggest what becomes possible if I drop it." },
+            { title:"Temporal Lens", desc:"Examines a modern challenge through three time periods to reveal which aspects are timeless and which are products of our era. Often surfaces surprisingly simple solutions.", prompt:"Take a challenge I'm dealing with and analyze it across three time horizons. First: how would someone in 1900 have approached this with the tools of their era? Second: what's the best modern approach today? Third: what will people in 2125 think was painfully obvious about this problem that we're completely missing? Look for the solution that works across all three eras." },
+            { title:"Pattern Interruption", desc:"Identifies recurring patterns in your life that you've stopped noticing, then suggests one small change that would disrupt the loop at its root.", prompt:"I'll describe several situations or challenges I keep running into. Find the hidden pattern connecting them \u2014 the common thread I'm probably too close to see. Don't just name it; explain the underlying mechanism. Why does this pattern keep recurring? What's the 'source code' driving it? Then suggest the smallest possible intervention \u2014 one tiny behavioral change \u2014 that would disrupt this pattern at its root." },
+            { title:"The Energy Audit", desc:"Maps your activities against their true energy impact rather than perceived importance. Reveals which 'productive' tasks drain you and which 'guilty pleasures' recharge you.", prompt:"I'll list everything I did last week \u2014 work tasks, hobbies, social activities, errands, everything. For each one, help me honestly assess: did it give me energy or drain it? Plot them on two axes: energy impact (draining to energizing) and perceived importance (trivial to critical). Find: (1) energy vampires disguised as obligations, (2) energizers I'm dismissing as frivolous, and (3) the ideal week that maximizes both energy and impact." },
+            { title:"The Explanation Gauntlet", desc:"Tests your understanding by forcing you to explain the same concept four completely different ways. If you can't explain it simply, you don't understand it deeply enough.", prompt:"I'll give you a concept. Explain it four different ways: (1) using only words a 10-year-old would know, (2) as a single metaphor drawn from nature, (3) as a set of three rules that capture its essence, and (4) by describing a world where this concept doesn't exist and what breaks. The concept: [insert your topic]" },
+            { title:"The 100 Readers Test", desc:"Evaluates any piece of writing by imagining 100 different readers encountering it. Reveals blind spots by showing how your words land differently across audiences.", prompt:"I'll share a piece of writing (email, post, proposal, etc.). Imagine 100 very different people reading it \u2014 varying in age, background, expertise, mood, and context. What does the most generous reader take away? What does the most cynical reader think? Where does the confused reader get lost? What does the reader who disagrees find most objectionable? Rewrite the key parts to work for all 100 readers." },
+            { title:"The 10-10-10 Reframe", desc:"Forces long-term thinking by examining how you'll feel about a decision across three future time horizons. Cuts through analysis paralysis by separating fear from consequence.", prompt:"I'll describe a decision I'm stuck on. Walk me through the 10-10-10 framework with brutal honesty: How will I feel about this choice 10 minutes from now? 10 months from now? 10 years from now? For each horizon, consider the best case, worst case, and most likely case. Then tell me: which version of my future self would be most disappointed if I chose the safe option?" },
         ];
         const ON_THIS_DAY = {
             "01-01":"On this day in 1983, the Internet was born when ARPANET switched to TCP/IP.",
@@ -372,7 +367,6 @@
                 +'<div class="drawer-section"><div class="drawer-section-title">Sections</div>'+t+'</div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Context Window</div><p style="font-size:13px;color:#888;margin-bottom:8px">Tell the newsletter what you want in plain English. It will adjust your feed based on keywords and intent.</p><textarea class="requests-textarea" id="requestsInput" placeholder="e.g. More NBA content\nFocus on AI breakthroughs\nLess politics in Top Stories\nShow cooking recipes on weekends">'+escapeHtml(savedReqs)+'</textarea>'+keywordsHtml+'</div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Custom Topics</div><p style="font-size:13px;color:#888;margin-bottom:8px">Add any subreddit as a custom section.</p><div class="add-topic-row"><input type="text" id="customSubreddit" placeholder="e.g. space, nba, vinyl" /><button class="add-topic-btn" onclick="addCustomTopic()">Add</button></div><div class="custom-topics-list">'+chips+'</div></div>'
-                +'<div class="drawer-section"><div class="drawer-section-title">Location</div><p style="font-size:13px;color:#888;margin-bottom:8px">City, state, or zip code for weather.</p><input class="prefs-url-input" id="locationInput" type="text" placeholder="e.g. 46033, Carmel IN, London" value="'+escapeHtml(prefs.location||'')+'" /></div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Preferences File</div><p class="prefs-hint">Load settings from an external URL (e.g. GitHub Gist raw link). Leave blank for local preferences.md.</p><input class="prefs-url-input" id="prefsUrlInput" type="url" placeholder="https://gist.githubusercontent.com/..." value="'+escapeHtml(prefs.prefsUrl||'')+'" /></div>';
         }
         function adjustCount(d){ prefs.articlesPerSection=Math.max(3,Math.min(12,prefs.articlesPerSection+d)); document.getElementById('articleCount').textContent=prefs.articlesPerSection; }
@@ -382,7 +376,6 @@
             document.querySelectorAll('[data-section-title]').forEach(cb=>{const t=cb.dataset.sectionTitle;const s=prefs.sections.find(x=>x.title===t);if(s)s.enabled=cb.checked;});
             const u=document.getElementById('prefsUrlInput'); if(u){const v=u.value.trim();if(v)localStorage.setItem('rundownPrefsUrl',v);else localStorage.removeItem('rundownPrefsUrl');}
             const reqEl=document.getElementById('requestsInput'); if(reqEl){const rv=reqEl.value.trim();localStorage.setItem('rundownRequests',rv);prefs.requests=rv;}
-            const locEl=document.getElementById('locationInput'); if(locEl){const lv=locEl.value.trim();localStorage.setItem('rundownLocation',lv);prefs.location=lv;}
             closeDrawer(); loadNewsletter();
         }
 
@@ -495,7 +488,7 @@
                 const all=d.data.children.filter(c=>!c.data.stickied);
                 const recent=all.filter(c=>c.data.created_utc>=cutoff);
                 const source=recent.length>=limit?recent:all;
-                return shuffle(source.map(c=>({title:c.data.title,summary:c.data.selftext?c.data.selftext.substring(0,160)+(c.data.selftext.length>160?'...':''):'',url:c.data.url.startsWith('/r/')?'https://www.reddit.com'+c.data.url:c.data.url,score:c.data.score,source:'r/'+subreddit,comments:c.data.num_comments}))).slice(0,limit);
+                return shuffle(source.map(c=>{const fullUrl=c.data.url.startsWith('/r/')?'https://www.reddit.com'+c.data.url:c.data.url; return {title:c.data.title,summary:c.data.selftext?c.data.selftext.substring(0,160)+(c.data.selftext.length>160?'...':''):'',url:fullUrl,score:c.data.score,source:extractDomain(fullUrl)||'r/'+subreddit,comments:c.data.num_comments};})).slice(0,limit);
             }catch(e){console.warn('Failed r/'+subreddit,e);return [];}
         }
         async function fetchMultiReddit(subs, limit=6){
@@ -515,26 +508,21 @@
                 return shuffle(source.map(s=>({title:s.title,summary:'',url:s.url||'https://news.ycombinator.com/item?id='+s.id,score:s.score,source:'Hacker News',comments:s.descendants||0}))).slice(0,limit);
             }catch(e){console.warn('Failed HN',e);return [];}
         }
-        async function fetchWeather(){
-            try{ const loc=prefs&&prefs.location?encodeURIComponent(prefs.location):''; const r=await fetch('https://wttr.in/'+loc+'?format=j1',{headers:{'Accept':'application/json'}}); if(!r.ok) throw new Error('Weather '+r.status);
-                const d=await r.json(); const c=d.current_condition[0]; const a=d.nearest_area[0];
-                return {temp:c.temp_F,feels:c.FeelsLikeF,desc:c.weatherDesc[0].value,humidity:c.humidity,city:a.areaName[0].value,region:a.region[0].value,code:parseInt(c.weatherCode)};
-            }catch(e){console.warn('Failed weather',e);return null;}
+        function extractDomain(url){
+            try{ const h=new URL(url).hostname.replace(/^www\./,''); if(h.includes('reddit.com')||h.includes('redd.it')) return null; return h; }catch(e){return null;}
         }
-        function getWeatherEmoji(code){
-            if(code===113)return'\u2600\uFE0F';if(code===116)return'\u26C5';if([119,122].includes(code))return'\u2601\uFE0F';
-            if([143,248,260].includes(code))return'\u{1F32B}\uFE0F';if([176,263,266,293,296,299,302,305,308,311,314,353,356,359].includes(code))return'\u{1F327}\uFE0F';
-            if([179,182,185,227,230,317,320,323,326,329,332,335,338,350,362,365,368,371,374,377,392,395].includes(code))return'\u{1F328}\uFE0F';
-            if([200,386,389].includes(code))return'\u26C8\uFE0F';return'\u{1F324}\uFE0F';
+        async function fetchDevTo(limit=8){
+            try{ const r=await fetch('https://dev.to/api/articles?per_page='+Math.min(limit*2,20)+'&top=1'); if(!r.ok) throw new Error('DevTo '+r.status);
+                const articles=await r.json();
+                return shuffle(articles.map(a=>({title:a.title,summary:a.description?a.description.substring(0,140):'',url:a.url,score:a.public_reactions_count,source:'dev.to',comments:a.comments_count||0}))).slice(0,limit);
+            }catch(e){console.warn('Failed Dev.to',e);return [];}
         }
 
         // ─── Render ──────────────────────────────────────────────
-        function renderWeather(w){
-            const mEl=document.getElementById('mobileWeather');
-            if(!w){mEl.innerHTML='';return;}
-            const e=getWeatherEmoji(w.code);
-            const locLabel=prefs&&prefs.location?escapeHtml(prefs.location):(w.city+', '+w.region);
-            mEl.innerHTML='<div class="weather-strip"><div class="weather-icon">'+e+'</div><div class="weather-info"><div class="weather-temp">'+w.temp+'\u00B0F (feels '+w.feels+'\u00B0F)</div><div class="weather-desc">'+w.desc+' \u2022 '+locLabel+' \u2022 '+w.humidity+'% humidity</div></div></div>';
+        function renderPrompt(){
+            const now=new Date(); const dayOfYear=Math.floor((now-new Date(now.getFullYear(),0,0))/86400000);
+            const p=PROMPTS[dayOfYear%PROMPTS.length];
+            return '<div class="prompt-card"><h3>\u{1F9E0} Today\'s AI Prompt</h3><div class="prompt-title">'+escapeHtml(p.title)+'</div><div class="prompt-desc">'+escapeHtml(p.desc)+'</div><div class="prompt-text">'+escapeHtml(p.prompt)+'</div><button class="prompt-copy" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent).then(()=>{this.textContent=\'Copied!\';setTimeout(()=>this.textContent=\'Copy Prompt\',1500)})">Copy Prompt</button></div>';
         }
         function renderSection(section,stories,displayOpt){
             if(!stories||stories.length===0) return '';
@@ -550,7 +538,6 @@
         }
         function toggleSection(id){ const b=document.getElementById(id); b.classList.toggle('collapsed'); b.previousElementSibling.classList.toggle('collapsed'); }
         function toggleAllSections(){ const bodies=document.querySelectorAll('.section-body'); const anyExpanded=[...bodies].some(b=>!b.classList.contains('collapsed')); bodies.forEach(b=>{if(anyExpanded){b.classList.add('collapsed');b.previousElementSibling.classList.add('collapsed');}else{b.classList.remove('collapsed');b.previousElementSibling.classList.remove('collapsed');}}); }
-        function renderQuote(){ const q=QUOTES[Math.floor(Math.random()*QUOTES.length)]; return '<div class="quote-card"><div class="quote-text">\u201C'+escapeHtml(q.text)+'\u201D</div><div class="quote-author">\u2014 '+escapeHtml(q.author)+'</div></div>'; }
         function renderOnThisDay(){ const n=new Date(); const k=String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); const f=ON_THIS_DAY[k]; if(!f)return''; return '<div class="on-this-day"><h3>\u{1F4C5} On This Day</h3><p>'+escapeHtml(f)+'</p></div>'; }
         function renderFooter(){ return '<div class="footer"><p>Your Morning Rundown &bull; Brewed fresh at '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</p></div>'; }
         function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
@@ -566,8 +553,8 @@
 
             el.innerHTML=secs.map(s=>'<div class="section '+s.theme+'"><div class="section-header"><div class="section-icon">'+s.icon+'</div><div class="section-title">'+s.title+'</div><div class="collapse-chevron">\u25BC</div></div><div style="padding:16px 20px"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line medium"></div><div class="skeleton skeleton-line short"></div></div></div>').join('');
             const needHN=secs.some(s=>s.hnMix); const hnLimit=needHN?Math.max(8,limit):0;
-            const [weather,hnStories,...results]=await Promise.all([fetchWeather(),needHN?fetchHackerNews(hnLimit):Promise.resolve([]),...secs.map(s=>fetchMultiReddit(s.subreddits,limit+4))]);
-            renderWeather(weather);
+            const needDevTo=secs.some(s=>s.id==='tech'||s.id==='ai');
+            const [hnStories,devToStories,...results]=await Promise.all([needHN?fetchHackerNews(hnLimit):Promise.resolve([]),needDevTo?fetchDevTo(limit):Promise.resolve([]),...secs.map(s=>fetchMultiReddit(s.subreddits,limit+4))]);
             let html='';
             for(let i=0;i<secs.length;i++){
                 const sec=secs[i]; let stories=results[i]||[]; const dopt=getSectionDisplayOption(sec.id);
@@ -575,11 +562,15 @@
                     const hn=sec.id==='headlines'?hnStories.slice(0,Math.ceil(limit/2)):hnStories.slice(Math.ceil(limit/2),Math.ceil(limit/2)+Math.floor(limit/3));
                     stories=[...hn,...stories.slice(0,limit-hn.length)];
                 }
+                if((sec.id==='tech'||sec.id==='ai')&&devToStories.length){
+                    const dt=devToStories.slice(0,Math.floor(limit/3));
+                    stories=[...stories.slice(0,limit-dt.length),...dt];
+                }
                 // Apply NLP request filters (demote/hide matching stories)
                 stories=applyRequestFilters(sec.id,sec.title,stories);
                 html+=renderSection(sec,stories.slice(0,limit),dopt);
             }
-            html+=renderQuote()+renderOnThisDay()+renderFooter();
+            html+=renderPrompt()+renderOnThisDay()+renderFooter();
             el.innerHTML=html;
         }
         function refreshNewsletter(){ const b=document.querySelector('.refresh-btn'); b.classList.add('spinning'); setTimeout(()=>b.classList.remove('spinning'),600); loadNewsletter(); }
