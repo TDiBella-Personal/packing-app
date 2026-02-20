@@ -17,6 +17,7 @@ Toggle sections on/off with `[x]` (enabled) or `[ ]` (disabled). Order here cont
 - [x] Tech
 - [x] AI & Machine Learning
 - [x] Science
+- [x] Sports
 - [x] Gaming
 - [x] Movies & TV
 - [x] Music

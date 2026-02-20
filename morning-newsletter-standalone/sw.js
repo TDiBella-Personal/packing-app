@@ -1,4 +1,4 @@
-const CACHE_NAME = 'morning-rundown-v1';
+const CACHE_NAME = 'morning-rundown-v2';
 const SHELL_ASSETS = [
     './index.html',
     './manifest.json',
@@ -28,13 +28,19 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
-    // API calls (Reddit, HN, weather) — always try network first
+    // API calls (Reddit, HN, etc.) — always try network first
     if (url.hostname !== location.hostname) {
         event.respondWith(
             fetch(event.request)
                 .then(response => response)
                 .catch(() => caches.match(event.request))
         );
+        return;
+    }
+
+    // Preferences and other .md files — always network, never cache
+    if (url.pathname.endsWith('.md')) {
+        event.respondWith(fetch(event.request));
         return;
     }
 

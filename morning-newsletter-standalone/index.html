@@ -305,8 +305,8 @@
             if (artMatch) p.articlesPerSection = parseInt(artMatch[1]);
             const locMatch = md.match(/\*\*Location:\*\*\s*(.+)/i);
             if (locMatch) { const v=locMatch[1].trim(); if(v&&!v.startsWith('*')&&!v.startsWith('(')) p.location=v; }
-            const urlMatch = md.match(/\*\*Preferences URL:\*\*\s*(.+)/i);
-            if (urlMatch) { const v=urlMatch[1].trim(); if(v&&!v.startsWith('*')&&!v.startsWith('(')) p.prefsUrl=v; }
+            const urlMatch = md.match(/\*\*Preferences URL:\*\*[ \t]*(\S+)/i);
+            if (urlMatch) { const v=urlMatch[1].trim(); if(v&&!v.startsWith('*')&&!v.startsWith('(')&&!v.startsWith('#')) p.prefsUrl=v; }
             const sectionRegex = /- \[(x| )\]\s+(.+)/gi;
             let m; while((m=sectionRegex.exec(md))!==null) p.sections.push({title:m[2].trim(),enabled:m[1].toLowerCase()==='x'});
             const ctMatch = md.match(/## Custom Topics[\s\S]*?```\s*([\s\S]*?)```/i);
@@ -317,13 +317,19 @@
             if(dispSection){ const or=/\*\*(.+?):\*\*\s*(.+)/gi; let om; while((om=or.exec(dispSection[0]))!==null) p.displayOptions[om[1].trim().toLowerCase()]=om[2].trim().toLowerCase(); }
             return p;
         }
+        function isValidPrefs(p){ return p && p.sections && p.sections.length > 0; }
         async function loadPreferences() {
             const savedUrl = localStorage.getItem('rundownPrefsUrl');
             const urls = []; if(savedUrl) urls.push(savedUrl); urls.push('preferences.md');
-            for(const url of urls){ try{ const r=await fetch(url,{cache:'no-cache'}); if(r.ok){ const md=await r.text(); const p=parsePreferencesMd(md);
-                if(p.prefsUrl&&p.prefsUrl!==url&&!savedUrl){ try{const r2=await fetch(p.prefsUrl,{cache:'no-cache'}); if(r2.ok){prefs=parsePreferencesMd(await r2.text()); const sl2=localStorage.getItem('rundownLocation'); if(sl2!==null) prefs.location=sl2; localStorage.setItem('rundownPrefsUrl',p.prefsUrl); return;}}catch(e){} }
+            for(const url of urls){ try{ const r=await fetch(url,{cache:'no-cache'}); if(r.ok){ const md=await r.text();
+                // Guard: if we got HTML instead of markdown, skip it
+                const mdLower=md.trimStart().toLowerCase();
+                if(mdLower.startsWith('<!') || mdLower.startsWith('<html') || mdLower.startsWith('<?xml')) continue;
+                const p=parsePreferencesMd(md);
+                if(!isValidPrefs(p)) continue;
+                if(p.prefsUrl&&p.prefsUrl!==url&&!savedUrl){ try{const r2=await fetch(p.prefsUrl,{cache:'no-cache'}); if(r2.ok){ const md2=await r2.text(); const md2Lower=md2.trimStart().toLowerCase(); if(!md2Lower.startsWith('<!') && !md2Lower.startsWith('<html') && !md2Lower.startsWith('<?xml')){ const p2=parsePreferencesMd(md2); if(isValidPrefs(p2)){prefs=p2; const sl2=localStorage.getItem('rundownLocation'); if(sl2!==null) prefs.location=sl2; localStorage.setItem('rundownPrefsUrl',p.prefsUrl); return;}}}}catch(e){} }
                 prefs=p; const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl; return; }}catch(e){} }
-            prefs={articlesPerSection:6,location:'',prefsUrl:'',sections:Object.keys(SECTION_REGISTRY).map(t=>({title:t.split(' ').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '),enabled:true})),customTopics:[],requests:'',displayOptions:{}};
+            prefs={articlesPerSection:6,location:'',prefsUrl:'',sections:Object.keys(SECTION_REGISTRY).map(t=>{const UPPER_WORDS={'ai':'AI','&':'&','tv':'TV'}; return {title:t.split(' ').map(w=>UPPER_WORDS[w]||w[0].toUpperCase()+w.slice(1)).join(' '),enabled:true};}),customTopics:[],requests:'',displayOptions:{}};
             const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl;
         }
         function getActiveSections(){
@@ -338,7 +344,7 @@
         }
 
         // ─── Init ────────────────────────────────────────────────
-        document.addEventListener('DOMContentLoaded', async()=>{ initDarkMode(); setDateAndGreeting(); await loadPreferences(); const savedReqs=localStorage.getItem('rundownRequests'); if(savedReqs!==null) prefs.requests=savedReqs; loadNewsletter(); });
+        document.addEventListener('DOMContentLoaded', async()=>{ initDarkMode(); setDateAndGreeting(); await loadPreferences(); const savedReqs=localStorage.getItem('rundownRequests'); if(savedReqs!==null){ if(/\\[sS\[]/.test(savedReqs)||/\[\^\\]/.test(savedReqs)){ localStorage.removeItem('rundownRequests'); } else { prefs.requests=savedReqs; } } const savedUrl=localStorage.getItem('rundownPrefsUrl'); if(savedUrl&&(!/^https?:\/\//.test(savedUrl)||/[\[\]\\]/.test(savedUrl))){ localStorage.removeItem('rundownPrefsUrl'); } loadNewsletter(); });
 
         function initDarkMode(){ const saved=localStorage.getItem('newsletterDarkMode'); const dark=saved!==null?saved==='true':(window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches); if(dark){document.body.classList.add('dark-mode');document.querySelector('.dark-mode-toggle').textContent='\u2600\uFE0F';} }
         function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); const d=document.body.classList.contains('dark-mode'); localStorage.setItem('newsletterDarkMode',d); document.querySelector('.dark-mode-toggle').textContent=d?'\u2600\uFE0F':'\u{1F319}'; }
@@ -358,7 +364,7 @@
         function renderDrawerBody(){
             const body=document.getElementById('drawerBody');
             let t=prefs.sections.map(sec=>{const key=sec.title.toLowerCase();const reg=SECTION_REGISTRY[key];const icon=reg?reg.icon:'\u2B50';
-                return '<div class="toggle-row"><div class="toggle-label"><span class="toggle-emoji">'+icon+'</span><span>'+sec.title+'</span></div><label class="switch"><input type="checkbox" data-section-title="'+sec.title+'" '+(sec.enabled?'checked':'')+'><span class="slider"></span></label></div>';}).join('');
+                return '<div class="toggle-row"><div class="toggle-label"><span class="toggle-emoji">'+icon+'</span><span>'+escapeHtml(sec.title)+'</span></div><label class="switch"><input type="checkbox" data-section-title="'+escapeHtml(sec.title)+'" '+(sec.enabled?'checked':'')+'><span class="slider"></span></label></div>';}).join('');
             let chips=prefs.customTopics.map((s,i)=>'<span class="custom-topic-chip">r/'+escapeHtml(s)+'<button class="remove-topic" onclick="removeCustomTopic('+i+')">&times;</button></span>').join('');
             const savedReqs=localStorage.getItem('rundownRequests')||prefs.requests||'';
             const activeKeywords=parseRequestKeywords(savedReqs);
@@ -529,9 +535,10 @@
             const titlesOnly=displayOpt==='titles-only';
             const tags=['hot','trending','new'];
             const sh=stories.map((s,i)=>{
-                const tag=i===0?'<span class="story-tag tag-'+tags[Math.floor(Math.random()*tags.length)]+'">'+tags[Math.floor(Math.random()*tags.length)]+'</span>':'';
+                const tagIdx=Math.floor(Math.random()*tags.length);
+                const tag=i===0?'<span class="story-tag tag-'+tags[tagIdx]+'">'+tags[tagIdx]+'</span>':'';
                 const sum=(!titlesOnly&&s.summary)?'<div class="story-summary">'+escapeHtml(s.summary)+'</div>':'';
-                return '<div class="story"><div class="story-headline"><a href="'+escapeHtml(s.url)+'" target="_blank" rel="noopener">'+escapeHtml(s.title)+'</a></div>'+sum+'<div class="story-meta">'+tag+'<span>'+s.source+'</span>'+(s.comments?'<span>'+s.comments+' comments</span>':'')+'</div></div>';
+                return '<div class="story"><div class="story-headline"><a href="'+escapeHtml(s.url)+'" target="_blank" rel="noopener">'+escapeHtml(s.title)+'</a></div>'+sum+'<div class="story-meta">'+tag+'<span>'+escapeHtml(s.source)+'</span>'+(s.comments?'<span>'+s.comments+' comments</span>':'')+'</div></div>';
             }).join('');
             const sid=section.id+'_sec';
             return '<div class="section '+section.theme+'"><div class="section-header" onclick="toggleSection(\''+sid+'\')"><div class="section-icon">'+section.icon+'</div><div class="section-title">'+section.title+'</div><div class="collapse-chevron">\u25BC</div></div><div class="section-body" id="'+sid+'">'+sh+'</div></div>';
@@ -540,7 +547,7 @@
         function toggleAllSections(){ const bodies=document.querySelectorAll('.section-body'); const anyExpanded=[...bodies].some(b=>!b.classList.contains('collapsed')); bodies.forEach(b=>{if(anyExpanded){b.classList.add('collapsed');b.previousElementSibling.classList.add('collapsed');}else{b.classList.remove('collapsed');b.previousElementSibling.classList.remove('collapsed');}}); }
         function renderOnThisDay(){ const n=new Date(); const k=String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); const f=ON_THIS_DAY[k]; if(!f)return''; return '<div class="on-this-day"><h3>\u{1F4C5} On This Day</h3><p>'+escapeHtml(f)+'</p></div>'; }
         function renderFooter(){ return '<div class="footer"><p>Your Morning Rundown &bull; Brewed fresh at '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</p></div>'; }
-        function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+        function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
         // ─── Main load ───────────────────────────────────────────
         async function loadNewsletter(){
