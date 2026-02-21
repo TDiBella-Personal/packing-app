@@ -1,9 +1,10 @@
-const CACHE_NAME = 'morning-rundown-v1';
+const CACHE_NAME = 'morning-rundown-v2';
 const SHELL_ASSETS = [
     './newsletter.html',
     './manifest.json',
     './icon-192.png',
     './icon-512.png',
+    // NOTE: preferences.md is intentionally excluded — always fetch fresh from network
 ];
 
 // Install: cache the app shell
@@ -35,6 +36,13 @@ self.addEventListener('fetch', event => {
                 .then(response => response)
                 .catch(() => caches.match(event.request))
         );
+        return;
+    }
+
+    // Never cache .md files — always fetch fresh so the parser never
+    // receives a stale or corrupted (e.g. HTML) response.
+    if (url.pathname.endsWith('.md')) {
+        event.respondWith(fetch(event.request));
         return;
     }
 
